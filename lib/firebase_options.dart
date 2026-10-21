@@ -24,17 +24,19 @@ class DefaultFirebaseOptions {
   // Web configuration (GitHub Pages / Web builds)
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: String.fromEnvironment('FIREBASE_WEB_API_KEY',
-        defaultValue: 'AIzaSyDemoPlaceholderWebApiKeyStudyTracker'),
+        defaultValue: 'AIzaSyCcMURj1hrVHLgFn1B2nDFR4Xeu5e5et68'),
     appId: String.fromEnvironment('FIREBASE_WEB_APP_ID',
-        defaultValue: '1:123456789012:web:abcdef1234567890'),
+        defaultValue: '1:713947693149:web:0e6e15e7992aabf6b5cdb4'),
     messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID',
-        defaultValue: '123456789012'),
+        defaultValue: '713947693149'),
     projectId: String.fromEnvironment('FIREBASE_PROJECT_ID',
         defaultValue: 'study-tracker-3c731'),
     authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN',
         defaultValue: 'study-tracker-3c731.firebaseapp.com'),
     storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET',
-        defaultValue: 'study-tracker-3c731.appspot.com'),
+        defaultValue: 'study-tracker-3c731.firebasestorage.app'),
+    measurementId: String.fromEnvironment('FIREBASE_MEASUREMENT_ID',
+        defaultValue: 'G-WDM0G1F1H6'),
   );
 
   // Android configuration

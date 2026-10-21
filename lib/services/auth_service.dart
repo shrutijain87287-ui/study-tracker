@@ -74,12 +74,23 @@ class AuthService {
 
   static bool get isEmailVerified => currentUser?.emailVerified ?? false;
 
+  static bool get isPlaceholderConfigured {
+    final key = DefaultFirebaseOptions.currentPlatform.apiKey;
+    return key.startsWith('AIzaSyDemoPlaceholder');
+  }
+
   /// Register with email and password.
   static Future<AuthResult> signUpWithEmail({
     required String email,
     required String password,
     String? displayName,
   }) async {
+    if (isPlaceholderConfigured) {
+      return const AuthResult.failure(
+        'Firebase project credentials are not yet configured. Please paste your Web API key and project ID from Firebase Console into lib/firebase_options.dart.',
+      );
+    }
+
     final ok = await initialize();
     if (!ok || _auth == null) {
       return const AuthResult.failure(
@@ -116,6 +127,12 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    if (isPlaceholderConfigured) {
+      return const AuthResult.failure(
+        'Firebase project credentials are not yet configured. Please paste your Web API key and project ID from Firebase Console into lib/firebase_options.dart.',
+      );
+    }
+
     final ok = await initialize();
     if (!ok || _auth == null) {
       return const AuthResult.failure(
@@ -138,6 +155,12 @@ class AuthService {
 
   /// Send password reset link to user's email.
   static Future<AuthResult> sendPasswordResetEmail(String email) async {
+    if (isPlaceholderConfigured) {
+      return const AuthResult.failure(
+        'Firebase project credentials are not yet configured. Please paste your Web API key and project ID from Firebase Console into lib/firebase_options.dart.',
+      );
+    }
+
     final ok = await initialize();
     if (!ok || _auth == null) {
       return const AuthResult.failure(
@@ -234,6 +257,14 @@ class AuthService {
         return 'Network error. Please check your internet connection.';
       case 'operation-not-allowed':
         return 'Email/Password sign-in is not enabled in Firebase Console. Please enable it in Authentication -> Sign-in method.';
+      case 'api-key-not-valid':
+        return 'Firebase API key is invalid or placeholder. Please update lib/firebase_options.dart with your Web configuration from Firebase Console.';
+      case 'app-not-authorized':
+        return 'This app domain is not authorized. Please add your domain to Firebase Console -> Authentication -> Settings -> Authorized domains.';
+      case 'permission-denied':
+        return 'Access denied. Cloud Firestore security rules require an authenticated account.';
+      case 'unavailable':
+        return 'Firebase services are temporarily unreachable. Local data is preserved.';
       default:
         return e.message ?? 'Authentication error: ${e.code}';
     }

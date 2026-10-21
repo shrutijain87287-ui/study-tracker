@@ -87,10 +87,23 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
-        // On login, perform initial sync to pull down cloud data if needed
+        // On login, check if there is unmigrated local data on this device
         final uid = result.user?.uid;
-        if (uid != null) {
-          await CloudSyncService.sync(uid);
+        if (uid != null && mounted) {
+          final hasUnmigrated =
+              await CloudSyncService.hasUnmigratedLocalData(uid);
+          if (hasUnmigrated && mounted) {
+            setState(() => _isLoading = false);
+            final doMerge = await _showMigrationPromptDialog(isLogin: true);
+            setState(() => _isLoading = true);
+            if (doMerge == false) {
+              await CloudSyncService.restoreCloudToLocal(uid);
+            } else {
+              await CloudSyncService.sync(uid);
+            }
+          } else {
+            await CloudSyncService.sync(uid);
+          }
         }
 
         if (mounted) {
@@ -186,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<bool?> _showMigrationPromptDialog() {
+  Future<bool?> _showMigrationPromptDialog({bool isLogin = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return showDialog<bool>(
@@ -209,7 +222,7 @@ class _AuthScreenState extends State<AuthScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Migrate Local Data?',
+                isLogin ? 'Sync Local Progress?' : 'Migrate Local Data?',
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.bold,
                   fontSize: 17,
@@ -223,7 +236,9 @@ class _AuthScreenState extends State<AuthScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'We found existing study tracker data on this device (study plans, notes, subjects, schedules).',
+              isLogin
+                  ? 'We found study progress saved locally on this device before signing in. Would you like to merge it with your cloud account, or restore your cloud backup?'
+                  : 'We found existing study tracker data on this device (study plans, notes, subjects, schedules).',
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 color: isDark
@@ -245,7 +260,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Migrating will backup your progress to your cloud account so you can restore it anytime.',
+                      isLogin
+                          ? 'Merging preserves all current subjects, progress, and notebooks together safely.'
+                          : 'Migrating will backup your progress to your cloud account so you can restore it anytime.',
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -262,7 +279,7 @@ class _AuthScreenState extends State<AuthScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
-              'Start Fresh',
+              isLogin ? 'Restore Cloud Only' : 'Start Fresh',
               style: GoogleFonts.poppins(
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -273,7 +290,7 @@ class _AuthScreenState extends State<AuthScreen> {
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.cloud_done_rounded, size: 16),
-            label: const Text('Migrate & Sync'),
+            label: Text(isLogin ? 'Merge with Cloud' : 'Migrate & Sync'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(

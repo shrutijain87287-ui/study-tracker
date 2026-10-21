@@ -278,35 +278,76 @@ class CloudSyncService {
           .doc('data');
       final snapshot = await docRef.get();
 
-      if (!snapshot.exists || snapshot.data() == null) {
-        // Fallback: check profile doc
-        final profileRef = _firestore!
+      CloudDataBundle? bundle;
+
+      if (snapshot.exists &&
+          snapshot.data() != null &&
+          snapshot.data()!.isNotEmpty) {
+        bundle = CloudDataBundle.fromJson(snapshot.data()!);
+      } else {
+        // Fallback: Check if data exists in granular subcollections
+        final plansSnap = await _firestore!
+            .collection('users')
+            .doc(uid)
+            .collection('study_plans')
+            .get();
+        final nbsSnap = await _firestore!
+            .collection('users')
+            .doc(uid)
+            .collection('notebooks')
+            .get();
+        final classesSnap = await _firestore!
+            .collection('users')
+            .doc(uid)
+            .collection('classes')
+            .doc('data')
+            .get();
+        final profileSnap = await _firestore!
             .collection('users')
             .doc(uid)
             .collection('profile')
-            .doc('data');
-        final profileSnap = await profileRef.get();
+            .doc('data')
+            .get();
 
-        if (!profileSnap.exists) {
-          syncStatusNotifier.value = SyncStatus.synced;
-          return const SyncResult(
-            isSuccess: false,
-            message:
-                'No existing cloud backup found for this account. Local data preserved.',
+        if (plansSnap.docs.isNotEmpty || nbsSnap.docs.isNotEmpty) {
+          final plans =
+              plansSnap.docs.map((d) => StudyPlan.fromJson(d.data())).toList();
+          final nbs =
+              nbsSnap.docs.map((d) => Notebook.fromJson(d.data())).toList();
+          final classesData = classesSnap.data() ?? {};
+          final rawClasses = classesData['savedClasses'] as List? ?? [];
+          final savedClasses = rawClasses
+              .map((c) =>
+                  SavedClass.fromJson(Map<String, dynamic>.from(c as Map)))
+              .toList();
+          final recentSearches = (classesData['recentSearches'] as List? ?? [])
+              .map((s) => s.toString())
+              .toList();
+          final profileData = profileSnap.data() ?? {};
+
+          bundle = CloudDataBundle(
+            uid: uid,
+            exportedAt: DateTime.now(),
+            studyPlans: plans,
+            notebooks: nbs,
+            savedClasses: savedClasses,
+            recentSearches: recentSearches,
+            activePlanId: profileData['activePlanId'] as String?,
+            displayName: profileData['displayName'] as String?,
+            isDarkMode: profileData['isDarkMode'] as bool? ?? false,
           );
         }
       }
 
-      final rawData = snapshot.data();
-      if (rawData == null || rawData.isEmpty) {
+      if (bundle == null ||
+          (bundle.studyPlans.isEmpty && bundle.notebooks.isEmpty)) {
         syncStatusNotifier.value = SyncStatus.synced;
         return const SyncResult(
           isSuccess: false,
-          message: 'Cloud backup is empty. Your local data was preserved.',
+          message:
+              'No existing cloud backup found for this account. Local data preserved.',
         );
       }
-
-      final bundle = CloudDataBundle.fromJson(rawData);
 
       // SAFEGUARD: Never replace populated local data with an empty cloud list
       final localPlans = await StorageService.loadPlans();
@@ -570,6 +611,16 @@ class CloudSyncService {
           .collection('study_plans')
           .doc(plan.id);
       await planDoc.set(plan.toJson(), SetOptions(merge: true));
+    }
+
+    // 5. Subcollection sync for individual digital notebooks
+    for (final nb in bundle.notebooks) {
+      final nbDoc = _firestore!
+          .collection('users')
+          .doc(bundle.uid)
+          .collection('notebooks')
+          .doc(nb.id);
+      await nbDoc.set(nb.toJson(), SetOptions(merge: true));
     }
   }
 

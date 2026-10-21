@@ -901,7 +901,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Local storage active. Create a free account to enable automatic cloud backup and recovery.',
+                  AuthService.isPlaceholderConfigured
+                      ? 'Local storage active. To connect your Study Tracker Firebase project, replace the placeholder Web API keys in lib/firebase_options.dart.'
+                      : 'Local storage active. Sign in or register to enable cloud backup, synchronization, and device recovery.',
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     color: isDark

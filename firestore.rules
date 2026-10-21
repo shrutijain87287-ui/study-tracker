@@ -2,19 +2,48 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each user's data is strictly partitioned by their authenticated UID.
-    // Users can read and write only their own data.
+
+    // Root user document: Only the authenticated owner can access
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      // Allow recursive access to all subcollections under the user's document
-      // (study_plans, notebooks, profile, classes, backup, etc.)
+      // 1. User profile and global preferences document
+      // Path: /users/{userId}/profile/data
+      match /profile/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // 2. Complete atomic snapshot for reliable single-operation backup and recovery
+      // Path: /users/{userId}/backup/data
+      match /backup/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // 3. Classes Hub saved classes, watch progress, and search history
+      // Path: /users/{userId}/classes/data
+      match /classes/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // 4. Individual study plans (subjects, chapters, topics, tasks, targets, sessions)
+      // Path: /users/{userId}/study_plans/{planId}
+      match /study_plans/{planId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // 5. Individual digital notebooks (pages, stylus drawing strokes, tables, images)
+      // Path: /users/{userId}/notebooks/{notebookId}
+      match /notebooks/{notebookId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Recursive protection for any future subcollections under this user
       match /{allSubcollections=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Default deny for all other paths
+    // Default deny: Strictly block all unauthenticated and public access
     match /{document=**} {
       allow read, write: false;
     }

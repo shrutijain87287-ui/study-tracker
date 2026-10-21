@@ -105,6 +105,51 @@ flutter build web --release
 
 ---
 
+## ☁️ Cloud Authentication, Backup & Recovery
+
+Study Tracker provides a complete cloud synchronization and data recovery architecture powered by **Firebase Authentication** and **Cloud Firestore**.
+
+### 🌟 Core Capabilities
+- **Cross-Device Recovery**: Reinstall the app or switch devices, sign in with your email, and all study plans, notes, subjects, lecture completion, and settings restore automatically.
+- **Local Data Migration**: When an existing user first registers, the app automatically detects unauthenticated local data and offers to migrate it safely to the cloud.
+- **Fail-Safe Protection**: Local data is never overwritten by an empty cloud response. If offline or network errors occur, changes persist locally and sync once connection is restored.
+- **Conflict Resolution**: Two-way sync reconciles local and remote edits, preserving the most recently edited versions of notebooks and plans.
+
+### 🛠️ Firebase Console Setup Instructions
+
+To connect your own Firebase project:
+
+1. **Create a Firebase Project**:
+   - Go to [Firebase Console](https://console.firebase.google.com/) and create a project (e.g. `study-tracker-app`).
+2. **Enable Firebase Authentication**:
+   - Navigate to **Build → Authentication → Sign-in method**.
+   - Enable **Email/Password** provider (Email link is optional).
+3. **Create Cloud Firestore**:
+   - Navigate to **Build → Firestore Database → Create Database**.
+   - Start in **Production mode**.
+   - Set Cloud Firestore Security Rules using the provided [`firestore.rules`](file:///Users/shrutijain/Downloads/ca_inter_tracker/firestore.rules):
+     ```javascript
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /users/{userId} {
+           allow read, write: if request.auth != null && request.auth.uid == userId;
+           match /{allSubcollections=**} {
+             allow read, write: if request.auth != null && request.auth.uid == userId;
+           }
+         }
+         match /{document=**} {
+           allow read, write: false;
+         }
+       }
+     }
+     ```
+4. **Register Your Apps**:
+   - **Web App**: Click **Project Settings → Add App → Web**. Copy your `apiKey`, `appId`, `projectId`, `messagingSenderId`, and paste them into [`lib/firebase_options.dart`](file:///Users/shrutijain/Downloads/ca_inter_tracker/lib/firebase_options.dart) or provide via `--dart-define`.
+   - **Android App**: Add an Android app with package name `com.example.caintertracker`. Download `google-services.json` and place it in `android/app/`.
+
+---
+
 ## 🧪 Testing & Validation
 
 The codebase maintains strict quality standards:

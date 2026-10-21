@@ -1,12 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/study_plan.dart';
+import '../services/auth_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/storage_service.dart';
 import '../services/youtube_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/api_key_dialog.dart';
+import '../widgets/sync_status_badge.dart';
+import 'auth_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final StudyPlan activePlan;
@@ -474,6 +479,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
         children: [
+          // 0. ACCOUNT & CLOUD SYNCHRONIZATION
+          StreamBuilder<User?>(
+            stream: AuthService.authStateChanges,
+            initialData: AuthService.currentUser,
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+              return _buildAccountCard(isDark, user);
+            },
+          ),
+          const SizedBox(height: 14),
+
           // 1. ACTIVE STUDY PLAN MANAGEMENT
           _buildSettingsCard(
             isDark: isDark,
@@ -690,6 +706,398 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right_rounded,
                 color: AppColors.danger),
             onTap: _resetAllDialog,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleSyncNow(String uid) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await CloudSyncService.sync(uid);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor:
+            result.isSuccess ? AppColors.success : AppColors.warning,
+      ),
+    );
+    if (result.isSuccess) {
+      widget.onReloadAll();
+    }
+  }
+
+  Future<void> _handleRestoreCloud(String uid) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Restore Cloud Backup?'),
+        content: Text(
+          'This will restore your study plans, notebooks, and settings from your cloud account. Any unsaved local changes may be overwritten.',
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.cloud_download_rounded, size: 16),
+            label: const Text('Restore'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final result = await CloudSyncService.restoreCloudToLocal(uid);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor:
+              result.isSuccess ? AppColors.success : AppColors.warning,
+        ),
+      );
+      if (result.isSuccess) {
+        widget.onReloadAll();
+      }
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Sign Out?'),
+        content: Text(
+          'Your study data will stay saved locally on this device. You can sign back in anytime to resume cloud backup.',
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await AuthService.signOut();
+      await CloudSyncService.resetSyncState();
+      if (mounted) {
+        setState(() {});
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Signed out successfully.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Delete Cloud Account?'),
+        content: Text(
+          'Are you sure you want to permanently delete your cloud account? This removes your cloud authentication profile. Your local data on this device will remain until manually reset.',
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final res = await AuthService.deleteAccount();
+      if (!mounted) return;
+      if (res.isSuccess) {
+        await CloudSyncService.resetSyncState();
+        setState(() {});
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Your account has been deleted.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(res.errorMessage ?? 'Failed to delete account.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildAccountCard(bool isDark, User? user) {
+    if (user == null) {
+      return _buildSettingsCard(
+        isDark: isDark,
+        icon: Icons.cloud_queue_rounded,
+        iconBg: AppColors.pastelPurple,
+        iconFg: AppColors.primary,
+        title: 'Cloud Backup & Sync',
+        subtitle:
+            'Sign in to sync your study plans, notes, and progress across devices',
+        trailing: FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AuthScreen(
+                  onSuccess: () {
+                    widget.onReloadAll();
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+            );
+          },
+          child: const Text('Sign In'),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : AppColors.primaryLight.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Local storage active. Create a free account to enable automatic cloud backup and recovery.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11.5,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final initial = (user.displayName?.isNotEmpty == true
+            ? user.displayName![0]
+            : user.email?.isNotEmpty == true
+                ? user.email![0]
+                : 'U')
+        .toUpperCase();
+
+    return _buildSettingsCard(
+      isDark: isDark,
+      icon: Icons.cloud_done_rounded,
+      iconBg: AppColors.pastelMint,
+      iconFg: AppColors.pastelMintText,
+      title: 'Cloud Account',
+      subtitle: user.email ?? 'Connected',
+      trailing: const SyncStatusBadge(showLabel: true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primary,
+                child: Text(
+                  initial,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.displayName ?? 'Study Tracker User',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            user.email ?? '',
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11.5,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (user.emailVerified)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.pastelMint,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Verified',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.pastelMintText,
+                              ),
+                            ),
+                          )
+                        else
+                          InkWell(
+                            onTap: () async {
+                              final res =
+                                  await AuthService.sendEmailVerification();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(res.isSuccess
+                                      ? 'Verification email sent to ${user.email}!'
+                                      : res.errorMessage ??
+                                          'Failed to send email.'),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.pastelOrange,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Verify',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.pastelOrangeText,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ValueListenableBuilder<DateTime?>(
+            valueListenable: CloudSyncService.lastSyncNotifier,
+            builder: (ctx, lastSync, _) {
+              final text = lastSync != null
+                  ? 'Last backed up: ${DateFormat('d MMM yyyy, h:mm a').format(lastSync)}'
+                  : 'Cloud status: Ready to sync';
+              return Text(
+                text,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  icon: const Icon(Icons.sync_rounded, size: 16),
+                  label: const Text('Sync Now'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryLight,
+                    foregroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                  ),
+                  onPressed: () => _handleSyncNow(user.uid),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cloud_download_rounded, size: 16),
+                  label: const Text('Restore Cloud'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                  ),
+                  onPressed: () => _handleRestoreCloud(user.uid),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.logout_rounded, size: 15),
+                label: const Text('Sign Out'),
+                onPressed: _handleSignOut,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.delete_outline_rounded,
+                    size: 15, color: AppColors.danger),
+                label: const Text('Delete Account',
+                    style: TextStyle(color: AppColors.danger)),
+                onPressed: _handleDeleteAccount,
+              ),
+            ],
           ),
         ],
       ),

@@ -1,11 +1,15 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/study_plan.dart';
 import '../services/alarm_service.dart';
+import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/active_alarm_dialog.dart';
+import '../widgets/sync_status_badge.dart';
+import 'auth_screen.dart';
 import 'dashboard_screen.dart';
 import 'subjects_screen.dart';
 import 'classes_hub_screen.dart';
@@ -499,6 +503,127 @@ class _HomeShellState extends State<HomeShell> {
                               ),
                             ),
                           ],
+                        ),
+                        // Account Profile & Sync Status Chip
+                        StreamBuilder<User?>(
+                          stream: AuthService.authStateChanges,
+                          initialData: AuthService.currentUser,
+                          builder: (context, snapshot) {
+                            final user = snapshot.data;
+                            if (user != null) {
+                              final initial =
+                                  (user.displayName?.isNotEmpty == true
+                                          ? user.displayName![0]
+                                          : user.email?[0] ?? 'U')
+                                      .toUpperCase();
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () =>
+                                      setState(() => _selectedTabIndex = 7),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF252248)
+                                          : AppColors.primaryLight
+                                              .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF373268)
+                                            : const Color(0xFFDDD6FE),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 11,
+                                          backgroundColor: AppColors.primary,
+                                          child: Text(
+                                            initial,
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            user.displayName ??
+                                                user.email?.split('@').first ??
+                                                'User',
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        const SyncStatusBadge(showLabel: false),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AuthScreen(
+                                        onSuccess: widget.onReloadAll,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF252248)
+                                        : AppColors.pastelPurple,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? const Color(0xFF373268)
+                                          : const Color(0xFFDDD6FE),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.cloud_outlined,
+                                          size: 15, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Sign In to Sync',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                      const Icon(Icons.chevron_right_rounded,
+                                          size: 15, color: AppColors.primary),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

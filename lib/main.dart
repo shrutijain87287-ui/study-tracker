@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/study_plan.dart';
+import 'services/auth_service.dart';
+import 'services/cloud_sync_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'screens/home_shell.dart';
@@ -12,6 +14,12 @@ Future<void> main() async {
     await NotificationService.initialize();
   } catch (e) {
     debugPrint('Notification init notice: $e');
+  }
+  try {
+    await AuthService.initialize();
+    await CloudSyncService.initialize();
+  } catch (e) {
+    debugPrint('Firebase init notice: $e');
   }
   runApp(const StudyTrackerApp());
 }
@@ -37,6 +45,15 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
   }
 
   Future<void> _loadAppState() async {
+    final uid = AuthService.currentUid;
+    if (uid != null) {
+      try {
+        await CloudSyncService.sync(uid);
+      } catch (e) {
+        debugPrint('Cloud sync during app startup: $e');
+      }
+    }
+
     final dark = await StorageService.loadDarkMode();
     final plans = await StorageService.loadPlans();
     final userName = await StorageService.loadUserName();

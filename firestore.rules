@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each user's data is strictly partitioned by their authenticated UID.
+    // Users can read and write only their own data.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Allow recursive access to all subcollections under the user's document
+      // (study_plans, notebooks, profile, classes, backup, etc.)
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: false;
+    }
+  }
+}

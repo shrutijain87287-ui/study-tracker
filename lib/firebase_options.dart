@@ -30,11 +30,11 @@ class DefaultFirebaseOptions {
     messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID',
         defaultValue: '123456789012'),
     projectId: String.fromEnvironment('FIREBASE_PROJECT_ID',
-        defaultValue: 'study-tracker-app'),
+        defaultValue: 'study-tracker-3c731'),
     authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN',
-        defaultValue: 'study-tracker-app.firebaseapp.com'),
+        defaultValue: 'study-tracker-3c731.firebaseapp.com'),
     storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET',
-        defaultValue: 'study-tracker-app.appspot.com'),
+        defaultValue: 'study-tracker-3c731.appspot.com'),
   );
 
   // Android configuration

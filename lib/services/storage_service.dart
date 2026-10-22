@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/study_plan.dart';
 import '../models/class_model.dart';
 import '../models/note_model.dart';
+import 'auth_service.dart';
 
 class ReminderSettings {
   final bool soundEnabled;
@@ -78,12 +80,112 @@ class StorageService {
   static const String _legacyKeyPrimaryDate = 'primaryDate';
   static const String _legacyKeyBackupDate = 'backupDate';
 
+  static String? _activeUserId;
+
+  /// Sets the active user context for local storage scoping.
+  static void setActiveUserId(String? uid) {
+    _activeUserId = (uid != null && uid.trim().isNotEmpty) ? uid.trim() : null;
+  }
+
+  @visibleForTesting
+  static void resetTestingState() {
+    _activeUserId = null;
+  }
+
+  /// Current active user UID, or null if unauthenticated.
+  static String? get activeUserId => _activeUserId;
+
+  /// Effective user ID, falling back to AuthService.currentUid if activeUserId is not set.
+  static String? get effectiveUserId => _activeUserId ?? AuthService.currentUid;
+
+  /// Resolves the storage key scoped to the active or specified user.
+  /// If [explicitUid] is empty string (''), returns un-scoped [baseKey].
+  /// If [explicitUid] or [effectiveUserId] is present, returns 'user_${uid}_$baseKey'.
+  /// If unauthenticated guest session, returns un-scoped [baseKey].
+  static String _resolveKey(String baseKey, [String? explicitUid]) {
+    if (explicitUid == '') {
+      return baseKey;
+    }
+    final uid = (explicitUid != null && explicitUid.trim().isNotEmpty)
+        ? explicitUid.trim()
+        : effectiveUserId;
+    if (uid != null && uid.isNotEmpty) {
+      return 'user_${uid}_$baseKey';
+    }
+    return baseKey;
+  }
+
   static Future<SharedPreferences> _getPrefs() =>
       SharedPreferences.getInstance();
 
-  static Future<List<StudyPlan>> loadPlans() async {
+  /// Migrates legacy un-scoped data to the authenticated user's scoped keys once.
+  /// Then removes the un-scoped keys so no subsequent user account ever inherits them.
+  static Future<void> _maybeMigrateLegacyData(
+      String uid, SharedPreferences prefs) async {
+    final userKey = 'user_${uid}_$_keyPlans';
+    if (prefs.containsKey(userKey)) return;
+
+    final legacyPlans = prefs.getString(_keyPlans);
+    if (legacyPlans != null && legacyPlans.isNotEmpty) {
+      await prefs.setString(userKey, legacyPlans);
+      await prefs.remove(_keyPlans);
+    }
+
+    final legacyActiveId = prefs.getString(_keyActivePlanId);
+    if (legacyActiveId != null) {
+      await prefs.setString('user_${uid}_$_keyActivePlanId', legacyActiveId);
+      await prefs.remove(_keyActivePlanId);
+    }
+
+    final legacyUser = prefs.getString(_keyUserName);
+    if (legacyUser != null) {
+      await prefs.setString('user_${uid}_$_keyUserName', legacyUser);
+      await prefs.remove(_keyUserName);
+    }
+
+    final legacyReminders = prefs.getString(_keyReminderSettings);
+    if (legacyReminders != null) {
+      await prefs.setString(
+          'user_${uid}_$_keyReminderSettings', legacyReminders);
+      await prefs.remove(_keyReminderSettings);
+    }
+
+    final legacyClasses = prefs.getString(_keySavedClasses);
+    if (legacyClasses != null) {
+      await prefs.setString('user_${uid}_$_keySavedClasses', legacyClasses);
+      await prefs.remove(_keySavedClasses);
+    }
+
+    final legacySearches = prefs.getStringList(_keyRecentClassesSearches);
+    if (legacySearches != null) {
+      await prefs.setStringList(
+          'user_${uid}_$_keyRecentClassesSearches', legacySearches);
+      await prefs.remove(_keyRecentClassesSearches);
+    }
+
+    final legacyNotebooks = prefs.getString(_keyNotebooks);
+    if (legacyNotebooks != null) {
+      await prefs.setString('user_${uid}_$_keyNotebooks', legacyNotebooks);
+      await prefs.remove(_keyNotebooks);
+    }
+
+    final legacyDark = prefs.getBool(_keyDarkMode);
+    if (legacyDark != null) {
+      await prefs.setBool('user_${uid}_$_keyDarkMode', legacyDark);
+      await prefs.remove(_keyDarkMode);
+    }
+  }
+
+  static Future<List<StudyPlan>> loadPlans({String? uid}) async {
+    final targetUid = uid ?? effectiveUserId;
     final prefs = await _getPrefs();
-    final rawPlans = prefs.getString(_keyPlans);
+
+    if (targetUid != null && targetUid.isNotEmpty) {
+      await _maybeMigrateLegacyData(targetUid, prefs);
+    }
+
+    final key = _resolveKey(_keyPlans, targetUid);
+    final rawPlans = prefs.getString(key);
 
     if (rawPlans != null && rawPlans.isNotEmpty) {
       try {
@@ -136,8 +238,8 @@ class StorageService {
           );
 
           final plans = [migratedPlan];
-          await savePlans(plans);
-          await saveActivePlanId(migratedPlan.id);
+          await savePlans(plans, uid: targetUid);
+          await saveActivePlanId(migratedPlan.id, uid: targetUid);
           return plans;
         }
       } catch (_) {}
@@ -146,45 +248,48 @@ class StorageService {
     return [];
   }
 
-  static Future<void> savePlans(List<StudyPlan> plans) async {
+  static Future<void> savePlans(List<StudyPlan> plans, {String? uid}) async {
     final prefs = await _getPrefs();
     final encoded = jsonEncode(plans.map((p) => p.toJson()).toList());
-    await prefs.setString(_keyPlans, encoded);
+    await prefs.setString(_resolveKey(_keyPlans, uid), encoded);
   }
 
-  static Future<String?> loadActivePlanId() async {
+  static Future<String?> loadActivePlanId({String? uid}) async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyActivePlanId);
+    return prefs.getString(_resolveKey(_keyActivePlanId, uid));
   }
 
-  static Future<void> saveActivePlanId(String id) async {
+  static Future<void> saveActivePlanId(String id, {String? uid}) async {
     final prefs = await _getPrefs();
-    await prefs.setString(_keyActivePlanId, id);
+    await prefs.setString(_resolveKey(_keyActivePlanId, uid), id);
   }
 
-  static Future<bool> loadDarkMode() async {
+  static Future<bool> loadDarkMode({String? uid}) async {
     final prefs = await _getPrefs();
-    return prefs.getBool(_keyDarkMode) ?? false;
+    return prefs.getBool(_resolveKey(_keyDarkMode, uid)) ??
+        prefs.getBool(_keyDarkMode) ??
+        false;
   }
 
-  static Future<void> saveDarkMode(bool isDark) async {
+  static Future<void> saveDarkMode(bool isDark, {String? uid}) async {
     final prefs = await _getPrefs();
+    await prefs.setBool(_resolveKey(_keyDarkMode, uid), isDark);
     await prefs.setBool(_keyDarkMode, isDark);
   }
 
-  static Future<String?> loadUserName() async {
+  static Future<String?> loadUserName({String? uid}) async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyUserName);
+    return prefs.getString(_resolveKey(_keyUserName, uid));
   }
 
-  static Future<void> saveUserName(String name) async {
+  static Future<void> saveUserName(String name, {String? uid}) async {
     final prefs = await _getPrefs();
-    await prefs.setString(_keyUserName, name);
+    await prefs.setString(_resolveKey(_keyUserName, uid), name);
   }
 
-  static Future<ReminderSettings> loadReminderSettings() async {
+  static Future<ReminderSettings> loadReminderSettings({String? uid}) async {
     final prefs = await _getPrefs();
-    final raw = prefs.getString(_keyReminderSettings);
+    final raw = prefs.getString(_resolveKey(_keyReminderSettings, uid));
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -194,18 +299,20 @@ class StorageService {
     return const ReminderSettings();
   }
 
-  static Future<void> saveReminderSettings(ReminderSettings settings) async {
+  static Future<void> saveReminderSettings(ReminderSettings settings,
+      {String? uid}) async {
     final prefs = await _getPrefs();
-    await prefs.setString(_keyReminderSettings, jsonEncode(settings.toJson()));
+    await prefs.setString(
+        _resolveKey(_keyReminderSettings, uid), jsonEncode(settings.toJson()));
   }
 
   // ==========================================
   // SAVED CLASSES & SEARCHES (CLASSES HUB)
   // ==========================================
 
-  static Future<List<SavedClass>> loadSavedClasses() async {
+  static Future<List<SavedClass>> loadSavedClasses({String? uid}) async {
     final prefs = await _getPrefs();
-    final raw = prefs.getString(_keySavedClasses);
+    final raw = prefs.getString(_resolveKey(_keySavedClasses, uid));
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw) as List;
@@ -218,14 +325,16 @@ class StorageService {
     return [];
   }
 
-  static Future<void> saveSavedClasses(List<SavedClass> list) async {
+  static Future<void> saveSavedClasses(List<SavedClass> list,
+      {String? uid}) async {
     final prefs = await _getPrefs();
     final encoded = jsonEncode(list.map((c) => c.toJson()).toList());
-    await prefs.setString(_keySavedClasses, encoded);
+    await prefs.setString(_resolveKey(_keySavedClasses, uid), encoded);
   }
 
-  static Future<SavedClass> addOrUpdateSavedClass(SavedClass item) async {
-    final list = await loadSavedClasses();
+  static Future<SavedClass> addOrUpdateSavedClass(SavedClass item,
+      {String? uid}) async {
+    final list = await loadSavedClasses(uid: uid);
     final index = list.indexWhere((c) => c.videoId == item.videoId);
     if (index >= 0) {
       item.updatedAt = DateTime.now();
@@ -233,49 +342,55 @@ class StorageService {
     } else {
       list.insert(0, item);
     }
-    await saveSavedClasses(list);
+    await saveSavedClasses(list, uid: uid);
     return item;
   }
 
-  static Future<void> removeSavedClass(String videoId) async {
-    final list = await loadSavedClasses();
+  static Future<void> removeSavedClass(String videoId, {String? uid}) async {
+    final list = await loadSavedClasses(uid: uid);
     list.removeWhere((c) => c.videoId == videoId || c.id == videoId);
-    await saveSavedClasses(list);
+    await saveSavedClasses(list, uid: uid);
   }
 
-  static Future<List<String>> loadRecentClassesSearches() async {
+  static Future<List<String>> loadRecentClassesSearches({String? uid}) async {
     final prefs = await _getPrefs();
-    return prefs.getStringList(_keyRecentClassesSearches) ?? [];
+    return prefs.getStringList(_resolveKey(_keyRecentClassesSearches, uid)) ??
+        [];
   }
 
-  static Future<void> addRecentClassesSearch(String query) async {
+  static Future<void> addRecentClassesSearch(String query, {String? uid}) async {
     final clean = query.trim();
     if (clean.isEmpty) return;
     final prefs = await _getPrefs();
-    final list = prefs.getStringList(_keyRecentClassesSearches) ?? [];
+    final key = _resolveKey(_keyRecentClassesSearches, uid);
+    final list = prefs.getStringList(key) ?? [];
     list.removeWhere((q) => q.toLowerCase() == clean.toLowerCase());
     list.insert(0, clean);
     if (list.length > 10) {
       list.removeRange(10, list.length);
     }
-    await prefs.setStringList(_keyRecentClassesSearches, list);
+    await prefs.setStringList(key, list);
   }
 
-  static Future<void> clearRecentClassesSearches() async {
+  static Future<void> clearRecentClassesSearches({String? uid}) async {
     final prefs = await _getPrefs();
-    await prefs.remove(_keyRecentClassesSearches);
+    await prefs.remove(_resolveKey(_keyRecentClassesSearches, uid));
   }
 
-  static Future<String?> loadYouTubeApiKey() async {
+  static Future<String?> loadYouTubeApiKey({String? uid}) async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyYouTubeApiKey);
+    return prefs.getString(_resolveKey(_keyYouTubeApiKey, uid)) ??
+        prefs.getString(_keyYouTubeApiKey);
   }
 
-  static Future<void> saveYouTubeApiKey(String? key) async {
+  static Future<void> saveYouTubeApiKey(String? key, {String? uid}) async {
     final prefs = await _getPrefs();
+    final userKey = _resolveKey(_keyYouTubeApiKey, uid);
     if (key == null || key.trim().isEmpty) {
+      await prefs.remove(userKey);
       await prefs.remove(_keyYouTubeApiKey);
     } else {
+      await prefs.setString(userKey, key.trim());
       await prefs.setString(_keyYouTubeApiKey, key.trim());
     }
   }
@@ -283,9 +398,9 @@ class StorageService {
   // ==========================================
   // DIGITAL NOTEBOOKS PERSISTENCE
   // ==========================================
-  static Future<List<Notebook>> loadNotebooks() async {
+  static Future<List<Notebook>> loadNotebooks({String? uid}) async {
     final prefs = await _getPrefs();
-    final raw = prefs.getString(_keyNotebooks);
+    final raw = prefs.getString(_resolveKey(_keyNotebooks, uid));
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw) as List;
@@ -297,7 +412,7 @@ class StorageService {
         final hadStarter = list.any((n) => n.id == 'nb_welcome_starter');
         if (hadStarter) {
           list.removeWhere((n) => n.id == 'nb_welcome_starter');
-          await saveNotebooks(list);
+          await saveNotebooks(list, uid: uid);
         }
         return list;
       } catch (e) {
@@ -308,41 +423,44 @@ class StorageService {
     return [];
   }
 
-  static Future<void> saveNotebooks(List<Notebook> notebooks) async {
+  static Future<void> saveNotebooks(List<Notebook> notebooks,
+      {String? uid}) async {
     final prefs = await _getPrefs();
     final encoded = jsonEncode(notebooks.map((n) => n.toJson()).toList());
-    await prefs.setString(_keyNotebooks, encoded);
+    await prefs.setString(_resolveKey(_keyNotebooks, uid), encoded);
   }
 
-  static Future<void> saveNotebook(Notebook notebook) async {
-    final list = await loadNotebooks();
+  static Future<void> saveNotebook(Notebook notebook, {String? uid}) async {
+    final list = await loadNotebooks(uid: uid);
     final index = list.indexWhere((n) => n.id == notebook.id);
     if (index >= 0) {
       list[index] = notebook;
     } else {
       list.insert(0, notebook);
     }
-    await saveNotebooks(list);
+    await saveNotebooks(list, uid: uid);
   }
 
-  static Future<void> deleteNotebook(String notebookId) async {
-    final list = await loadNotebooks();
+  static Future<void> deleteNotebook(String notebookId, {String? uid}) async {
+    final list = await loadNotebooks(uid: uid);
     list.removeWhere((n) => n.id == notebookId);
-    await saveNotebooks(list);
+    await saveNotebooks(list, uid: uid);
   }
 
-  static Future<Notebook?> getNotebookById(String id) async {
-    final list = await loadNotebooks();
+  static Future<Notebook?> getNotebookById(String id, {String? uid}) async {
+    final list = await loadNotebooks(uid: uid);
     return list.where((n) => n.id == id).firstOrNull;
   }
 
-  static Future<List<Notebook>> getNotebooksForClass(String videoId) async {
-    final list = await loadNotebooks();
+  static Future<List<Notebook>> getNotebooksForClass(String videoId,
+      {String? uid}) async {
+    final list = await loadNotebooks(uid: uid);
     return list.where((n) => n.linkedVideoId == videoId).toList();
   }
 
-  static Future<List<Notebook>> getNotebooksForSubject(String subjectId) async {
-    final list = await loadNotebooks();
+  static Future<List<Notebook>> getNotebooksForSubject(String subjectId,
+      {String? uid}) async {
+    final list = await loadNotebooks(uid: uid);
     return list.where((n) => n.subjectId == subjectId).toList();
   }
 
@@ -382,21 +500,34 @@ class StorageService {
         'Unrecognized backup format. Please ensure valid Study Tracker JSON.');
   }
 
+  /// Clears all stored data from preferences (both user-scoped and global).
   static Future<void> clearAllData() async {
     final prefs = await _getPrefs();
-    await prefs.remove(_keyPlans);
-    await prefs.remove(_keyActivePlanId);
-    await prefs.remove(_keyUserName);
-    await prefs.remove(_keyReminderSettings);
-    await prefs.remove(_keySavedClasses);
-    await prefs.remove(_keyRecentClassesSearches);
-    await prefs.remove(_keyYouTubeApiKey);
-    await prefs.remove(_keyNotebooks);
-    await prefs.remove(_legacyKeySubjects);
-    await prefs.remove(_legacyKeyReminders);
-    await prefs.remove(_legacyKeyPrimaryTarget);
-    await prefs.remove(_legacyKeyBackupTarget);
-    await prefs.remove(_legacyKeyPrimaryDate);
-    await prefs.remove(_legacyKeyBackupDate);
+    await prefs.clear();
+  }
+
+  /// Clears all local storage keys belonging specifically to [uid].
+  static Future<void> clearUserData(String uid) async {
+    final prefs = await _getPrefs();
+    final prefix = 'user_${uid}_';
+    final keys = prefs.getKeys().where((k) => k.startsWith(prefix)).toList();
+    for (final k in keys) {
+      await prefs.remove(k);
+    }
+  }
+
+  /// Clears local storage keys belonging to the currently active user session.
+  static Future<void> clearActiveUserData() async {
+    final uid = effectiveUserId;
+    if (uid != null) {
+      await clearUserData(uid);
+    } else {
+      final prefs = await _getPrefs();
+      final keys =
+          prefs.getKeys().where((k) => k.startsWith('guest_')).toList();
+      for (final k in keys) {
+        await prefs.remove(k);
+      }
+    }
   }
 }

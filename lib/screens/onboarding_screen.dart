@@ -178,7 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _userNameCtrl = TextEditingController(
       text: widget.initialUserName?.isNotEmpty == true
           ? widget.initialUserName!
-          : 'Shruti',
+          : '',
     );
     _planNameCtrl = TextEditingController(text: 'My Study Plan');
     _applyCategoryDefaults(_selectedCategory, isInit: true);
@@ -668,7 +668,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: 'Your Name (e.g. Shruti)',
+                      hintText: 'Your Name',
                       hintStyle: GoogleFonts.poppins(
                         fontSize: 13,
                         color: isDark
@@ -753,7 +753,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 }
               },
               decoration: InputDecoration(
-                hintText: 'My Study Plan (e.g. CA Inter, B.Com, UPSC, etc.)',
+                hintText: 'My Study Plan (e.g. Semester Exam, UPSC, GATE, etc.)',
                 hintStyle: GoogleFonts.poppins(
                   fontSize: 13,
                   color: isDark

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/cloud_sync_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 
 enum AuthMode {
@@ -90,6 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
         // On login, check if there is unmigrated local data on this device
         final uid = result.user?.uid;
         if (uid != null && mounted) {
+          StorageService.setActiveUserId(uid);
           final hasUnmigrated =
               await CloudSyncService.hasUnmigratedLocalData(uid);
           if (hasUnmigrated && mounted) {
@@ -137,28 +139,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
         final uid = result.user?.uid;
         if (uid != null && mounted) {
-          // Check if local data migration is available
-          final hasData = await CloudSyncService.hasUnmigratedLocalData(uid);
-          if (hasData && mounted) {
-            setState(() => _isLoading = false);
-            final doMigrate = await _showMigrationPromptDialog();
-            if (doMigrate == true) {
-              setState(() => _isLoading = true);
-              final migResult =
-                  await CloudSyncService.migrateLocalDataToCloud(uid);
-              if (mounted && !migResult.isSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(migResult.message),
-                    backgroundColor: AppColors.warning,
-                  ),
-                );
-              }
-            }
-          } else {
-            // Initial backup of new user profile
-            await CloudSyncService.backupLocalToCloud(uid);
+          StorageService.setActiveUserId(uid);
+          if (name.isNotEmpty) {
+            await StorageService.saveUserName(name, uid: uid);
           }
+          // Initialize clean cloud profile for the newly registered user
+          await CloudSyncService.sync(uid);
         }
 
         if (mounted) {

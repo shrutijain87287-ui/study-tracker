@@ -166,8 +166,8 @@ class CloudSyncService {
       return false;
     }
 
-    final localPlans = await StorageService.loadPlans();
-    final localNotebooks = await StorageService.loadNotebooks();
+    final localPlans = await StorageService.loadPlans(uid: uid);
+    final localNotebooks = await StorageService.loadNotebooks(uid: uid);
     // Ignore default starter notebook if user has not added anything
     final hasUserNotebooks =
         localNotebooks.any((n) => n.id != 'nb_welcome_starter');
@@ -351,7 +351,7 @@ class CloudSyncService {
       }
 
       // SAFEGUARD: Never replace populated local data with an empty cloud list
-      final localPlans = await StorageService.loadPlans();
+      final localPlans = await StorageService.loadPlans(uid: uid);
       if (bundle.studyPlans.isEmpty && localPlans.isNotEmpty) {
         syncStatusNotifier.value = SyncStatus.synced;
         return SyncResult(
@@ -361,29 +361,30 @@ class CloudSyncService {
         );
       }
 
-      // Apply cloud data to local storage
+      // Apply cloud data to user-scoped local storage
       if (bundle.studyPlans.isNotEmpty) {
-        await StorageService.savePlans(bundle.studyPlans);
+        await StorageService.savePlans(bundle.studyPlans, uid: uid);
       }
       if (bundle.activePlanId != null) {
-        await StorageService.saveActivePlanId(bundle.activePlanId!);
+        await StorageService.saveActivePlanId(bundle.activePlanId!, uid: uid);
       }
       if (bundle.notebooks.isNotEmpty) {
-        await StorageService.saveNotebooks(bundle.notebooks);
+        await StorageService.saveNotebooks(bundle.notebooks, uid: uid);
       }
       if (bundle.savedClasses.isNotEmpty) {
-        await StorageService.saveSavedClasses(bundle.savedClasses);
+        await StorageService.saveSavedClasses(bundle.savedClasses, uid: uid);
       }
       if (bundle.recentSearches.isNotEmpty) {
         for (final q in bundle.recentSearches.reversed) {
-          await StorageService.addRecentClassesSearch(q);
+          await StorageService.addRecentClassesSearch(q, uid: uid);
         }
       }
       if (bundle.displayName != null && bundle.displayName!.trim().isNotEmpty) {
-        await StorageService.saveUserName(bundle.displayName!.trim());
+        await StorageService.saveUserName(bundle.displayName!.trim(), uid: uid);
       }
-      await StorageService.saveDarkMode(bundle.isDarkMode);
-      await StorageService.saveReminderSettings(bundle.reminderSettings);
+      await StorageService.saveDarkMode(bundle.isDarkMode, uid: uid);
+      await StorageService.saveReminderSettings(bundle.reminderSettings,
+          uid: uid);
 
       await _recordSuccessfulSync();
       syncStatusNotifier.value = SyncStatus.synced;
@@ -429,8 +430,27 @@ class CloudSyncService {
       final localBundle = await _createLocalDataBundle(uid);
 
       if (!remoteSnap.exists || remoteSnap.data() == null) {
-        // No cloud data yet - upload local
-        await _writeBundleToFirestore(localBundle);
+        // No cloud data yet
+        if (localBundle.studyPlans.isNotEmpty ||
+            localBundle.notebooks.isNotEmpty) {
+          await _writeBundleToFirestore(localBundle);
+        } else {
+          // New user with no plans: initialize user profile document only.
+          // Never upload foreign or sample data to a new cloud account.
+          final profileRef = _firestore!
+              .collection('users')
+              .doc(uid)
+              .collection('profile')
+              .doc('data');
+          await profileRef.set({
+            'uid': uid,
+            'displayName': localBundle.displayName ?? AuthService.displayName,
+            'email': AuthService.currentEmail,
+            'updatedAt': DateTime.now().toIso8601String(),
+            'plansCount': 0,
+            'notebooksCount': 0,
+          }, SetOptions(merge: true));
+        }
         await _recordSuccessfulSync();
         syncStatusNotifier.value = SyncStatus.synced;
         return SyncResult(
@@ -489,9 +509,9 @@ class CloudSyncService {
       final mergedClasses = mergedClassesMap.values.toList();
 
       // Write merged bundle back to both local and cloud
-      await StorageService.savePlans(mergedPlans);
-      await StorageService.saveNotebooks(mergedNotebooks);
-      await StorageService.saveSavedClasses(mergedClasses);
+      await StorageService.savePlans(mergedPlans, uid: uid);
+      await StorageService.saveNotebooks(mergedNotebooks, uid: uid);
+      await StorageService.saveSavedClasses(mergedClasses, uid: uid);
 
       final updatedBundle = CloudDataBundle(
         uid: uid,
@@ -529,14 +549,15 @@ class CloudSyncService {
 
   /// Builds a complete `CloudDataBundle` from device local storage.
   static Future<CloudDataBundle> _createLocalDataBundle(String uid) async {
-    final plans = await StorageService.loadPlans();
-    final notebooks = await StorageService.loadNotebooks();
-    final savedClasses = await StorageService.loadSavedClasses();
-    final searches = await StorageService.loadRecentClassesSearches();
-    final activeId = await StorageService.loadActivePlanId();
-    final isDark = await StorageService.loadDarkMode();
-    final userName = await StorageService.loadUserName();
-    final reminderSettings = await StorageService.loadReminderSettings();
+    final plans = await StorageService.loadPlans(uid: uid);
+    final notebooks = await StorageService.loadNotebooks(uid: uid);
+    final savedClasses = await StorageService.loadSavedClasses(uid: uid);
+    final searches = await StorageService.loadRecentClassesSearches(uid: uid);
+    final activeId = await StorageService.loadActivePlanId(uid: uid);
+    final isDark = await StorageService.loadDarkMode(uid: uid);
+    final userName = await StorageService.loadUserName(uid: uid);
+    final reminderSettings =
+        await StorageService.loadReminderSettings(uid: uid);
 
     return CloudDataBundle(
       uid: uid,

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/study_plan.dart';
 import '../services/alarm_service.dart';
 import '../services/auth_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/active_alarm_dialog.dart';
@@ -94,6 +95,13 @@ class _HomeShellState extends State<HomeShell> {
     await StorageService.savePlans(_plans);
     await StorageService.saveActivePlanId(_activePlanId);
     if (mounted) setState(() {});
+    final uid = AuthService.currentUid;
+    if (uid != null) {
+      CloudSyncService.backupLocalToCloud(uid).catchError((e) {
+        debugPrint('Cloud backup error: $e');
+        return const SyncResult(isSuccess: false, message: 'Offline');
+      });
+    }
   }
 
   void _switchPlan(String newId) {

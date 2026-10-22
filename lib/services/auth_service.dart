@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import '../firebase_options.dart';
+import 'storage_service.dart';
 
 class AuthResult {
   final bool isSuccess;
@@ -38,6 +39,7 @@ class AuthService {
   static void setMockUser(User? user) {
     _mockUserOverride = true;
     _mockUser = user;
+    StorageService.setActiveUserId(user?.uid);
     _mockAuthController.add(user);
   }
 
@@ -58,6 +60,7 @@ class AuthService {
     _mockUser = null;
     _mockSignUpHandler = null;
     _mockSignInHandler = null;
+    StorageService.setActiveUserId(null);
   }
 
   static bool get isMockMode => _mockUserOverride;
@@ -276,6 +279,7 @@ class AuthService {
 
   /// Sign out current user.
   static Future<void> signOut() async {
+    StorageService.setActiveUserId(null);
     if (_mockUserOverride) {
       setMockUser(null);
       return;

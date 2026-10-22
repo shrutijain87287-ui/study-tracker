@@ -64,6 +64,9 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
       final previousUser = _currentUser;
       _currentUser = user;
 
+      // Ensure local storage is scoped to the current user
+      StorageService.setActiveUserId(user?.uid);
+
       if (!wasResolved) {
         // Initial session resolution on app start or refresh
         await _loadAppState();
@@ -76,12 +79,25 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
       } else if (previousUser?.uid != user?.uid) {
         // Dynamic auth state transition (sign in, sign up, or sign out)
         if (user != null) {
+          // Reset in-memory state before loading new user data to prevent cross-contamination
+          setState(() {
+            _plans = [];
+            _userName = null;
+            _activePlanId = null;
+          });
           await _loadAppState();
           _navigatorKey.currentState?.popUntil((route) => route.isFirst);
           if (mounted) setState(() {});
         } else {
+          // On sign out: reset active user context, sync indicators, and in-memory state
+          StorageService.setActiveUserId(null);
+          await CloudSyncService.resetSyncState();
+          setState(() {
+            _plans = [];
+            _userName = null;
+            _activePlanId = null;
+          });
           _navigatorKey.currentState?.popUntil((route) => route.isFirst);
-          await _loadAppState();
           if (mounted) setState(() {});
         }
       }
@@ -90,6 +106,8 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
 
   Future<void> _loadAppState() async {
     final uid = _currentUser?.uid ?? AuthService.currentUid;
+    StorageService.setActiveUserId(uid);
+
     if (uid != null) {
       try {
         await CloudSyncService.sync(uid);
@@ -100,8 +118,24 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
 
     final dark = await StorageService.loadDarkMode();
     final plans = await StorageService.loadPlans();
-    final userName = await StorageService.loadUserName();
+    var userName = await StorageService.loadUserName();
     String? activeId = await StorageService.loadActivePlanId();
+
+    // Derive user name from authentication profile if available and not yet saved in local storage
+    if ((userName == null || userName.trim().isEmpty) && _currentUser != null) {
+      final authName = _currentUser!.displayName;
+      if (authName != null && authName.trim().isNotEmpty) {
+        userName = authName.trim();
+        await StorageService.saveUserName(userName);
+      } else if (_currentUser!.email != null &&
+          _currentUser!.email!.contains('@')) {
+        final emailPrefix = _currentUser!.email!.split('@').first;
+        if (emailPrefix.isNotEmpty) {
+          userName = emailPrefix;
+          await StorageService.saveUserName(userName);
+        }
+      }
+    }
 
     if (plans.isNotEmpty &&
         (activeId == null || !plans.any((p) => p.id == activeId))) {
@@ -173,8 +207,13 @@ class _StudyTrackerAppState extends State<StudyTrackerApp> {
               : _plans.isEmpty
                   ? OnboardingScreen(
                       onPlanCreated: _onPlanCreated,
-                      initialUserName:
-                          _userName ?? Uri.base.queryParameters['user'],
+                      initialUserName: _userName ??
+                          _currentUser?.displayName ??
+                          (_currentUser?.email != null &&
+                                  _currentUser!.email!.contains('@')
+                              ? _currentUser!.email!.split('@').first
+                              : null) ??
+                          Uri.base.queryParameters['user'],
                     )
                   : HomeShell(
                       initialPlans: _plans,

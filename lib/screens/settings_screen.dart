@@ -803,7 +803,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirm == true) {
       await AuthService.signOut();
+      StorageService.setActiveUserId(null);
       await CloudSyncService.resetSyncState();
+      widget.onReloadAll();
       if (mounted) {
         setState(() {});
         messenger.showSnackBar(

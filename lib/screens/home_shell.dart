@@ -45,7 +45,17 @@ class _HomeShellState extends State<HomeShell> {
   late List<StudyPlan> _plans;
   late String _activePlanId;
   int _selectedTabIndex = 0;
+  final Set<int> _loadedTabs = {0};
   bool _isShowingAlarmDialog = false;
+
+  void _selectTab(int idx) {
+    if (_selectedTabIndex != idx || !_loadedTabs.contains(idx)) {
+      setState(() {
+        _selectedTabIndex = idx;
+        _loadedTabs.add(idx);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -366,67 +376,87 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Widget _buildPage(int index, bool isWide) {
+    if (!_loadedTabs.contains(index)) {
+      return const SizedBox.shrink();
+    }
+    switch (index) {
+      case 0:
+        return DashboardScreen(
+          plan: _activePlan,
+          allPlans: _plans,
+          isDark: widget.isDark,
+          userName: widget.userName,
+          onToggleTheme: widget.onToggleTheme,
+          onSwitchPlan: _switchPlan,
+          onAddSubject: _showAddSubjectDialog,
+          onEditPlan: _showEditPlanDialog,
+          onStartTimer: () => _selectTab(4),
+          onSave: _persistAll,
+          onNavigateTab: (idx) => _selectTab(idx),
+        );
+      case 1:
+        return SubjectsScreen(
+          plan: _activePlan,
+          onSave: _persistAll,
+          onAddSubject: _showAddSubjectDialog,
+          showAppBar: isWide,
+        );
+      case 2:
+        return ClassesHubScreen(
+          studyPlan: _activePlan,
+          onPlanUpdated: _persistAll,
+        );
+      case 3:
+        return NotesLibraryScreen(
+          studyPlan: _activePlan,
+          onPlanUpdated: _persistAll,
+        );
+      case 4:
+        return PomodoroScreen(
+          plan: _activePlan,
+          onSave: _persistAll,
+        );
+      case 5:
+        return RevisionScreen(
+          plan: _activePlan,
+          onSave: _persistAll,
+          showAppBar: isWide,
+        );
+      case 6:
+        return RemindersScreen(
+          plan: _activePlan,
+          onSave: _persistAll,
+          showAppBar: isWide,
+        );
+      case 7:
+        return SettingsScreen(
+          activePlan: _activePlan,
+          allPlans: _plans,
+          isDark: widget.isDark,
+          onToggleTheme: widget.onToggleTheme,
+          onSwitchPlan: _switchPlan,
+          onAddPlan: _addPlan,
+          onDeletePlan: _deletePlan,
+          onReloadAll: widget.onReloadAll,
+          onSave: _persistAll,
+          showAppBar: isWide,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth >= 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final pages = [
-      DashboardScreen(
-        plan: _activePlan,
-        allPlans: _plans,
-        isDark: widget.isDark,
-        userName: widget.userName,
-        onToggleTheme: widget.onToggleTheme,
-        onSwitchPlan: _switchPlan,
-        onAddSubject: _showAddSubjectDialog,
-        onEditPlan: _showEditPlanDialog,
-        onStartTimer: () => setState(() => _selectedTabIndex = 4),
-        onSave: _persistAll,
-        onNavigateTab: (idx) => setState(() => _selectedTabIndex = idx),
-      ),
-      SubjectsScreen(
-        plan: _activePlan,
-        onSave: _persistAll,
-        onAddSubject: _showAddSubjectDialog,
-        showAppBar: isWide,
-      ),
-      ClassesHubScreen(
-        studyPlan: _activePlan,
-        onPlanUpdated: _persistAll,
-      ),
-      NotesLibraryScreen(
-        studyPlan: _activePlan,
-        onPlanUpdated: _persistAll,
-      ),
-      PomodoroScreen(
-        plan: _activePlan,
-        onSave: _persistAll,
-      ),
-      RevisionScreen(
-        plan: _activePlan,
-        onSave: _persistAll,
-        showAppBar: isWide,
-      ),
-      RemindersScreen(
-        plan: _activePlan,
-        onSave: _persistAll,
-        showAppBar: isWide,
-      ),
-      SettingsScreen(
-        activePlan: _activePlan,
-        allPlans: _plans,
-        isDark: widget.isDark,
-        onToggleTheme: widget.onToggleTheme,
-        onSwitchPlan: _switchPlan,
-        onAddPlan: _addPlan,
-        onDeletePlan: _deletePlan,
-        onReloadAll: widget.onReloadAll,
-        onSave: _persistAll,
-        showAppBar: isWide,
-      ),
-    ];
+    final contentStack = IndexedStack(
+      index: _selectedTabIndex,
+      children: List.generate(8, (i) => _buildPage(i, isWide)),
+    );
 
     if (isWide) {
       // Elegant Pastel Left Sidebar for Desktop / Tablet Landscape
@@ -456,7 +486,7 @@ class _HomeShellState extends State<HomeShell> {
             ),
 
             // Content Area
-            Expanded(child: pages[_selectedTabIndex]),
+            Expanded(child: contentStack),
           ],
         ),
       );
@@ -477,7 +507,7 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ),
       ),
-      body: pages[_selectedTabIndex],
+      body: contentStack,
     );
   }
 
@@ -627,7 +657,7 @@ class _HomeShellState extends State<HomeShell> {
                   borderRadius: BorderRadius.circular(14),
                   onTap: () {
                     if (isDrawer) Navigator.pop(context);
-                    setState(() => _selectedTabIndex = 7);
+                    _selectTab(7);
                   },
                   child: Container(
                     padding:
@@ -883,7 +913,7 @@ class _HomeShellState extends State<HomeShell> {
             Navigator.pop(context);
           }
           if (_selectedTabIndex != index) {
-            setState(() => _selectedTabIndex = index);
+            _selectTab(index);
           }
         },
         borderRadius: BorderRadius.circular(16),

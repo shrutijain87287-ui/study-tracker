@@ -53,18 +53,27 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
     super.dispose();
   }
 
+  List<Notebook>? _cachedFilteredNotebooks;
+  List<Notebook>? _cachedRecentNotebooks;
+
+  void _invalidateFilterCache() {
+    _cachedFilteredNotebooks = null;
+    _cachedRecentNotebooks = null;
+  }
+
   Future<void> _loadNotebooks() async {
     final list = await StorageService.loadNotebooks();
     if (mounted) {
       setState(() {
         _notebooks = list;
         _isLoading = false;
+        _invalidateFilterCache();
       });
     }
   }
 
   List<Notebook> get _filteredNotebooks {
-    return _notebooks.where((nb) {
+    return _cachedFilteredNotebooks ??= _notebooks.where((nb) {
       // 1. Category Filter
       if (_selectedCategory != 'All' && nb.category != _selectedCategory) {
         return false;
@@ -108,9 +117,11 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
   }
 
   List<Notebook> get _recentNotebooks {
-    final sorted = List<Notebook>.from(_notebooks)
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return sorted.take(4).toList();
+    return _cachedRecentNotebooks ??= () {
+      final sorted = List<Notebook>.from(_notebooks)
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return sorted.take(4).toList();
+    }();
   }
 
   List<String> get _availableCategories {
@@ -182,6 +193,7 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
   Future<void> _toggleFavorite(Notebook notebook) async {
     notebook.isFavorite = !notebook.isFavorite;
     await StorageService.saveNotebook(notebook);
+    _invalidateFilterCache();
     setState(() {});
   }
 
@@ -406,7 +418,10 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
         // Search Input
         TextField(
           controller: _searchController,
-          onChanged: (val) => setState(() => _searchQuery = val),
+          onChanged: (val) {
+            _invalidateFilterCache();
+            setState(() => _searchQuery = val);
+          },
           decoration: InputDecoration(
             hintText:
                 'Search notebook titles, topics, tags or notes content...',
@@ -421,6 +436,7 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
                     icon: const Icon(Icons.clear_rounded, size: 18),
                     onPressed: () {
                       _searchController.clear();
+                      _invalidateFilterCache();
                       setState(() => _searchQuery = '');
                     },
                   )
@@ -472,7 +488,10 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
                     const Text('Favorites'),
                   ],
                 ),
-                onSelected: (val) => setState(() => _onlyFavorites = val),
+                onSelected: (val) {
+                  _invalidateFilterCache();
+                  setState(() => _onlyFavorites = val);
+                },
                 backgroundColor: isDark ? AppColors.cardDark : Colors.white,
                 selectedColor:
                     isDark ? const Color(0xFF382F62) : AppColors.pastelPurple,
@@ -500,6 +519,7 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
                     selected: isSelected,
                     onSelected: (selected) {
                       if (selected) {
+                        _invalidateFilterCache();
                         setState(() => _selectedCategory = cat);
                       }
                     },
@@ -575,6 +595,7 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
                       ],
                       onChanged: (val) {
                         if (val != null) {
+                          _invalidateFilterCache();
                           setState(() => _selectedSubjectId = val);
                         }
                       },

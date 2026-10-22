@@ -17,7 +17,19 @@ class DrawingCanvasController extends ChangeNotifier {
   double _activeStrokeWidth = 3.0;
   PageBackgroundStyle _backgroundStyle = PageBackgroundStyle.ruled;
 
+  final ValueNotifier<int> toolbarNotifier = ValueNotifier<int>(0);
+
   VoidCallback? onStrokesChanged;
+
+  void _notifyToolbarChanged() {
+    toolbarNotifier.value++;
+  }
+
+  @override
+  void dispose() {
+    toolbarNotifier.dispose();
+    super.dispose();
+  }
 
   DrawingCanvasController({
     List<DrawingStroke>? initialStrokes,
@@ -56,6 +68,7 @@ class DrawingCanvasController extends ChangeNotifier {
       } else if (tool == DrawingTool.pen && _activeStrokeWidth > 10.0) {
         _activeStrokeWidth = 3.0;
       }
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -64,21 +77,25 @@ class DrawingCanvasController extends ChangeNotifier {
     _activeShape = shape;
     _activeTool = DrawingTool.shape;
     _activeStrokeWidth = 2.5;
+    _notifyToolbarChanged();
     notifyListeners();
   }
 
   void setActiveColor(Color color) {
     _activeColor = color;
+    _notifyToolbarChanged();
     notifyListeners();
   }
 
   void setActiveStrokeWidth(double width) {
     _activeStrokeWidth = width;
+    _notifyToolbarChanged();
     notifyListeners();
   }
 
   void setBackgroundStyle(PageBackgroundStyle style) {
     _backgroundStyle = style;
+    _notifyToolbarChanged();
     notifyListeners();
   }
 
@@ -86,6 +103,7 @@ class DrawingCanvasController extends ChangeNotifier {
     _strokes = List.from(newStrokes);
     _undoStack.clear();
     _redoStack.clear();
+    _notifyToolbarChanged();
     notifyListeners();
   }
 
@@ -152,6 +170,7 @@ class DrawingCanvasController extends ChangeNotifier {
       _currentStroke = null;
       _redoStack.clear();
       onStrokesChanged?.call();
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -174,6 +193,7 @@ class DrawingCanvasController extends ChangeNotifier {
     if (erased) {
       _redoStack.clear();
       onStrokesChanged?.call();
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -183,6 +203,7 @@ class DrawingCanvasController extends ChangeNotifier {
       _redoStack.add(List.from(_strokes));
       _strokes = _undoStack.removeLast();
       onStrokesChanged?.call();
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -192,6 +213,7 @@ class DrawingCanvasController extends ChangeNotifier {
       _undoStack.add(List.from(_strokes));
       _strokes = _redoStack.removeLast();
       onStrokesChanged?.call();
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -202,6 +224,7 @@ class DrawingCanvasController extends ChangeNotifier {
       _strokes.clear();
       _redoStack.clear();
       onStrokesChanged?.call();
+      _notifyToolbarChanged();
       notifyListeners();
     }
   }
@@ -438,45 +461,74 @@ class _DrawingCanvasWidgetState extends State<DrawingCanvasWidget> {
     final cardBg = isDark ? AppColors.cardDark : Colors.white;
     final borderColor = isDark ? AppColors.borderDark : AppColors.borderLight;
 
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        return Column(
-          children: [
-            // Top Toolbar for Drawing Tools & Colors
-            _buildCanvasToolbar(cardBg, borderColor, isDark),
+    return Column(
+      children: [
+        // Top Toolbar for Drawing Tools & Colors (isolated rebuilds)
+        ValueListenableBuilder<int>(
+          valueListenable: widget.controller.toolbarNotifier,
+          builder: (context, _, __) {
+            return _buildCanvasToolbar(cardBg, borderColor, isDark);
+          },
+        ),
 
-            // Canvas Body
-            Expanded(
-              child: ClipRect(
-                child: Container(
-                  width: double.infinity,
-                  color: cardBg,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanStart: (d) =>
-                        widget.controller.startStroke(d.localPosition),
-                    onPanUpdate: (d) =>
-                        widget.controller.updateStroke(d.localPosition),
-                    onPanEnd: (d) => widget.controller.endStroke(),
-                    child: CustomPaint(
-                      painter: NotebookPaperPainter(
-                        style: widget.controller.backgroundStyle,
-                        isDark: isDark,
+        // Canvas Body
+        Expanded(
+          child: ClipRect(
+            child: Container(
+              width: double.infinity,
+              color: cardBg,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanStart: (d) =>
+                    widget.controller.startStroke(d.localPosition),
+                onPanUpdate: (d) =>
+                    widget.controller.updateStroke(d.localPosition),
+                onPanEnd: (d) => widget.controller.endStroke(),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Background Paper Layer (cached in GPU raster layer, willChange: false)
+                    RepaintBoundary(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: widget.controller.toolbarNotifier,
+                        builder: (context, _, __) {
+                          return CustomPaint(
+                            painter: NotebookPaperPainter(
+                              style: widget.controller.backgroundStyle,
+                              isDark: isDark,
+                            ),
+                            isComplex: true,
+                            willChange: false,
+                            child: const SizedBox.expand(),
+                          );
+                        },
                       ),
-                      foregroundPainter: DrawingStrokesPainter(
-                        strokes: widget.controller.strokes,
-                        currentStroke: widget.controller.currentStroke,
-                      ),
-                      child: const SizedBox.expand(),
                     ),
-                  ),
+
+                    // User Drawing Strokes Layer (isolated repaint boundary)
+                    RepaintBoundary(
+                      child: ListenableBuilder(
+                        listenable: widget.controller,
+                        builder: (context, _) {
+                          return CustomPaint(
+                            painter: DrawingStrokesPainter(
+                              strokes: widget.controller.strokes,
+                              currentStroke: widget.controller.currentStroke,
+                            ),
+                            isComplex: true,
+                            willChange: true,
+                            child: const SizedBox.expand(),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 

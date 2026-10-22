@@ -41,15 +41,16 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   Timer? _clockTimer;
-  DateTime _currentTime = DateTime.now();
+  final ValueNotifier<DateTime> _currentTimeNotifier =
+      ValueNotifier<DateTime>(DateTime.now());
 
   @override
   void initState() {
     super.initState();
-    // Refresh header clock every 30 seconds
+    // Refresh header clock every 30 seconds without rebuilding the full screen
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) {
-        setState(() => _currentTime = DateTime.now());
+        _currentTimeNotifier.value = DateTime.now();
       }
     });
   }
@@ -57,16 +58,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _currentTimeNotifier.dispose();
     super.dispose();
   }
 
   StudyPlan get plan => widget.plan;
 
-  String _getGreeting() {
+  String _getGreeting(DateTime currentTime) {
     final name = (widget.userName != null && widget.userName!.trim().isNotEmpty)
         ? widget.userName!.trim()
         : 'Student';
-    final hour = _currentTime.hour;
+    final hour = currentTime.hour;
     if (hour < 12) return 'Good Morning, $name ✨';
     if (hour < 17) return 'Good Afternoon, $name ✨';
     if (hour < 21) return 'Good Evening, $name ✨';
@@ -121,228 +123,236 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 1. TOP HEADER
   // ==========================================
   Widget _buildHeader(BuildContext context, bool isDark, bool isDesktop) {
-    final dateStr = DateFormat('EEE, d MMM yyyy').format(_currentTime);
-    final timeStr = DateFormat('h:mm a').format(_currentTime);
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: _currentTimeNotifier,
+      builder: (context, currentTime, _) {
+        final dateStr = DateFormat('EEE, d MMM yyyy').format(currentTime);
+        final timeStr = DateFormat('h:mm a').format(currentTime);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 640;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 640;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left: Greeting & Subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _getGreeting(),
-                    style: GoogleFonts.poppins(
-                      fontSize: isNarrow ? 20 : 26,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left: Greeting & Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Plan • Track • Revise • Achieve',
+                        _getGreeting(currentTime),
                         style: GoogleFonts.poppins(
-                          fontSize: isNarrow ? 12 : 14,
-                          fontWeight: FontWeight.w500,
+                          fontSize: isNarrow ? 20 : 26,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
                           color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
-                      if (widget.allPlans.length > 1) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            plan.title,
+                      const SizedBox(height: 4),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Plan • Track • Revise • Achieve',
                             style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              fontSize: isNarrow ? 12 : 14,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
                             ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Right: Date & Time Capsule + Theme Switcher + Avatar
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!isNarrow) ...[
-                  // Date & Time Capsule
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.cardDark : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDark
-                            ? AppColors.borderDark
-                            : AppColors.borderLight,
-                        width: 1.2,
-                      ),
-                      boxShadow: AppColors.softShadow,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today_rounded,
-                          size: 16,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$dateStr  $timeStr',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? AppColors.textPrimaryDark
-                                : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-
-                // Theme Mode Switcher Capsule
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: widget.onToggleTheme,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.cardDark : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isDark
-                              ? AppColors.borderDark
-                              : AppColors.borderLight,
-                          width: 1.2,
-                        ),
-                        boxShadow: AppColors.softShadow,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.wb_sunny_outlined,
-                            size: 16,
-                            color: !isDark
-                                ? AppColors.pastelOrangeText
-                                : Colors.grey,
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.nightlight_round,
-                            size: 16,
-                            color: isDark
-                                ? const Color(0xFFA899FF)
-                                : Colors.grey.shade400,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Plan / User Avatar with popup menu to switch plans
-                PopupMenuButton<String>(
-                  tooltip: 'Switch Study Plan',
-                  onSelected: widget.onSwitchPlan,
-                  offset: const Offset(0, 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18)),
-                  color: isDark ? AppColors.cardDark : Colors.white,
-                  itemBuilder: (ctx) => widget.allPlans.map((p) {
-                    final isCurrent = p.id == plan.id;
-                    return PopupMenuItem<String>(
-                      value: p.id,
-                      child: Row(
-                        children: [
-                          Icon(
-                            isCurrent
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            size: 16,
-                            color: isCurrent ? AppColors.primary : Colors.grey,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              p.title,
-                              style: GoogleFonts.poppins(
-                                fontWeight: isCurrent
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                fontSize: 13,
+                          if (widget.allPlans.length > 1) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                plan.title,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
-                    );
-                  }).toList(),
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF3B3568)
-                            : const Color(0xFFE2DCF8),
-                        width: 1.5,
-                      ),
-                      boxShadow: AppColors.softShadow,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      plan.title.isNotEmpty ? plan.title[0].toUpperCase() : 'S',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    ],
                   ),
                 ),
+
+                // Right: Date & Time Capsule + Theme Switcher + Avatar
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isNarrow) ...[
+                      // Date & Time Capsule
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.cardDark : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : AppColors.borderLight,
+                            width: 1.2,
+                          ),
+                          boxShadow: AppColors.softShadow,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              size: 16,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$dateStr  $timeStr',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+
+                    // Theme Mode Switcher Capsule
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: widget.onToggleTheme,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.cardDark : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.borderDark
+                                  : AppColors.borderLight,
+                              width: 1.2,
+                            ),
+                            boxShadow: AppColors.softShadow,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.wb_sunny_outlined,
+                                size: 16,
+                                color: !isDark
+                                    ? AppColors.pastelOrangeText
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.nightlight_round,
+                                size: 16,
+                                color: isDark
+                                    ? const Color(0xFFA899FF)
+                                    : Colors.grey.shade400,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Plan / User Avatar with popup menu to switch plans
+                    PopupMenuButton<String>(
+                      tooltip: 'Switch Study Plan',
+                      onSelected: widget.onSwitchPlan,
+                      offset: const Offset(0, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18)),
+                      color: isDark ? AppColors.cardDark : Colors.white,
+                      itemBuilder: (ctx) => widget.allPlans.map((p) {
+                        final isCurrent = p.id == plan.id;
+                        return PopupMenuItem<String>(
+                          value: p.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                isCurrent
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                size: 16,
+                                color:
+                                    isCurrent ? AppColors.primary : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  p.title,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF3B3568)
+                                : const Color(0xFFE2DCF8),
+                            width: 1.5,
+                          ),
+                          boxShadow: AppColors.softShadow,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          plan.title.isNotEmpty
+                              ? plan.title[0].toUpperCase()
+                              : 'S',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );

@@ -90,11 +90,13 @@ class _ClassesHubScreenState extends State<ClassesHubScreen>
   }
 
   Future<void> _initData() async {
-    await _checkApiMode();
-    await _loadRecentSearches();
     _loadPopularTopics();
-    await _loadRecommendations();
-    await _loadSavedClasses();
+    await Future.wait([
+      _checkApiMode(),
+      _loadRecentSearches(),
+      _loadRecommendations(),
+      _loadSavedClasses(),
+    ]);
   }
 
   Future<void> _checkApiMode() async {

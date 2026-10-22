@@ -78,8 +78,11 @@ class StorageService {
   static const String _legacyKeyPrimaryDate = 'primaryDate';
   static const String _legacyKeyBackupDate = 'backupDate';
 
+  static Future<SharedPreferences> _getPrefs() =>
+      SharedPreferences.getInstance();
+
   static Future<List<StudyPlan>> loadPlans() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final rawPlans = prefs.getString(_keyPlans);
 
     if (rawPlans != null && rawPlans.isNotEmpty) {
@@ -144,43 +147,43 @@ class StorageService {
   }
 
   static Future<void> savePlans(List<StudyPlan> plans) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final encoded = jsonEncode(plans.map((p) => p.toJson()).toList());
     await prefs.setString(_keyPlans, encoded);
   }
 
   static Future<String?> loadActivePlanId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     return prefs.getString(_keyActivePlanId);
   }
 
   static Future<void> saveActivePlanId(String id) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_keyActivePlanId, id);
   }
 
   static Future<bool> loadDarkMode() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     return prefs.getBool(_keyDarkMode) ?? false;
   }
 
   static Future<void> saveDarkMode(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setBool(_keyDarkMode, isDark);
   }
 
   static Future<String?> loadUserName() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     return prefs.getString(_keyUserName);
   }
 
   static Future<void> saveUserName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_keyUserName, name);
   }
 
   static Future<ReminderSettings> loadReminderSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_keyReminderSettings);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -192,7 +195,7 @@ class StorageService {
   }
 
   static Future<void> saveReminderSettings(ReminderSettings settings) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_keyReminderSettings, jsonEncode(settings.toJson()));
   }
 
@@ -201,7 +204,7 @@ class StorageService {
   // ==========================================
 
   static Future<List<SavedClass>> loadSavedClasses() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_keySavedClasses);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -216,7 +219,7 @@ class StorageService {
   }
 
   static Future<void> saveSavedClasses(List<SavedClass> list) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final encoded = jsonEncode(list.map((c) => c.toJson()).toList());
     await prefs.setString(_keySavedClasses, encoded);
   }
@@ -241,14 +244,14 @@ class StorageService {
   }
 
   static Future<List<String>> loadRecentClassesSearches() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     return prefs.getStringList(_keyRecentClassesSearches) ?? [];
   }
 
   static Future<void> addRecentClassesSearch(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final list = prefs.getStringList(_keyRecentClassesSearches) ?? [];
     list.removeWhere((q) => q.toLowerCase() == clean.toLowerCase());
     list.insert(0, clean);
@@ -259,17 +262,17 @@ class StorageService {
   }
 
   static Future<void> clearRecentClassesSearches() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.remove(_keyRecentClassesSearches);
   }
 
   static Future<String?> loadYouTubeApiKey() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     return prefs.getString(_keyYouTubeApiKey);
   }
 
   static Future<void> saveYouTubeApiKey(String? key) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     if (key == null || key.trim().isEmpty) {
       await prefs.remove(_keyYouTubeApiKey);
     } else {
@@ -281,7 +284,7 @@ class StorageService {
   // DIGITAL NOTEBOOKS PERSISTENCE
   // ==========================================
   static Future<List<Notebook>> loadNotebooks() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_keyNotebooks);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -306,7 +309,7 @@ class StorageService {
   }
 
   static Future<void> saveNotebooks(List<Notebook> notebooks) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final encoded = jsonEncode(notebooks.map((n) => n.toJson()).toList());
     await prefs.setString(_keyNotebooks, encoded);
   }
@@ -380,7 +383,7 @@ class StorageService {
   }
 
   static Future<void> clearAllData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.remove(_keyPlans);
     await prefs.remove(_keyActivePlanId);
     await prefs.remove(_keyUserName);

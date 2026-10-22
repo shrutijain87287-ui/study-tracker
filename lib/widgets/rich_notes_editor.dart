@@ -16,6 +16,16 @@ class RichNotesTextEditingController extends TextEditingController {
   double fontSize;
   double lineSpacing;
 
+  String? _lastFontFamily;
+  double? _lastFontSize;
+  double? _lastLineSpacing;
+  bool? _lastIsDark;
+  TextStyle? _cachedBaseStyle;
+
+  static final RegExp _inlineMarkdownRegExp = RegExp(
+    r'(\*\*[^*]+\*\*)|(\*[^*]+\*)|(__[^_]+__)|(~~[^~]+~~)|(==[^=]+==)|(`[^`]+`)|(\$[^$]+\$)|(\[[^\]]+\]\([^)]+\))|(^•\s)|(^\d+\.\s)',
+  );
+
   RichNotesTextEditingController({
     super.text,
     this.fontFamily = 'Poppins',
@@ -25,24 +35,44 @@ class RichNotesTextEditingController extends TextEditingController {
 
   TextStyle _getBaseStyle(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_cachedBaseStyle != null &&
+        _lastFontFamily == fontFamily &&
+        _lastFontSize == fontSize &&
+        _lastLineSpacing == lineSpacing &&
+        _lastIsDark == isDark) {
+      return _cachedBaseStyle!;
+    }
+
     final color =
         isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
 
+    TextStyle style;
     switch (fontFamily) {
       case 'Roboto':
-        return GoogleFonts.roboto(
+        style = GoogleFonts.roboto(
             fontSize: fontSize, height: lineSpacing, color: color);
+        break;
       case 'Merriweather':
-        return GoogleFonts.merriweather(
+        style = GoogleFonts.merriweather(
             fontSize: fontSize, height: lineSpacing, color: color);
+        break;
       case 'JetBrains Mono':
-        return GoogleFonts.jetBrainsMono(
+        style = GoogleFonts.jetBrainsMono(
             fontSize: fontSize, height: lineSpacing, color: color);
+        break;
       case 'Poppins':
       default:
-        return GoogleFonts.poppins(
+        style = GoogleFonts.poppins(
             fontSize: fontSize, height: lineSpacing, color: color);
+        break;
     }
+
+    _lastFontFamily = fontFamily;
+    _lastFontSize = fontSize;
+    _lastLineSpacing = lineSpacing;
+    _lastIsDark = isDark;
+    _cachedBaseStyle = style;
+    return style;
   }
 
   @override
@@ -200,12 +230,8 @@ class RichNotesTextEditingController extends TextEditingController {
     final List<InlineSpan> spans = [];
 
     // Supports: **bold**, *italic*, __underline__, ~~strike~~, ==highlight==, `code`, $math$, [label](url), • bullets, numbers
-    final regExp = RegExp(
-      r'(\*\*[^*]+\*\*)|(\*[^*]+\*)|(__[^_]+__)|(~~[^~]+~~)|(==[^=]+==)|(`[^`]+`)|(\$[^$]+\$)|(\[[^\]]+\]\([^)]+\))|(^•\s)|(^\d+\.\s)',
-    );
-
     int lastIndex = 0;
-    for (final match in regExp.allMatches(line)) {
+    for (final match in _inlineMarkdownRegExp.allMatches(line)) {
       if (match.start > lastIndex) {
         spans.add(TextSpan(
           text: line.substring(lastIndex, match.start),

@@ -23,6 +23,7 @@ class SettingsScreen extends StatefulWidget {
   final Function(String id) onDeletePlan;
   final VoidCallback onReloadAll;
   final Future<void> Function() onSave;
+  final bool? showAppBar;
 
   const SettingsScreen({
     super.key,
@@ -35,6 +36,7 @@ class SettingsScreen extends StatefulWidget {
     required this.onDeletePlan,
     required this.onReloadAll,
     required this.onSave,
+    this.showAppBar,
   });
 
   @override
@@ -467,15 +469,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
+    final isWide = MediaQuery.of(context).size.width >= 800;
+    final shouldShowAppBar = widget.showAppBar ?? isWide;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      appBar: AppBar(
-        title: Text(
-          'Settings & Plans',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
+      appBar: shouldShowAppBar
+          ? AppBar(
+              title: Text(
+                'Settings & Plans',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            )
+          : null,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
         children: [

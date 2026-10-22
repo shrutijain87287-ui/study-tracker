@@ -7,11 +7,13 @@ import '../theme/app_theme.dart';
 class RevisionScreen extends StatefulWidget {
   final StudyPlan plan;
   final Future<void> Function() onSave;
+  final bool? showAppBar;
 
   const RevisionScreen({
     super.key,
     required this.plan,
     required this.onSave,
+    this.showAppBar,
   });
 
   @override
@@ -211,43 +213,83 @@ class _RevisionScreenState extends State<RevisionScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 800;
+    final shouldShowAppBar = widget.showAppBar ?? isWide;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      appBar: AppBar(
-        title: Text(
-          'Revision & Notes Pack',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded),
-            tooltip: 'Add Revision Cycle',
-            onPressed: _showAddCycleDialog,
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabCtrl,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: isDark
-              ? AppColors.textSecondaryDark
-              : AppColors.textSecondaryLight,
-          labelStyle:
-              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
-          tabs: const [
-            Tab(icon: Icon(Icons.sync_rounded), text: 'Revision Matrix'),
-            Tab(
-                icon: Icon(Icons.collections_bookmark_rounded),
-                text: 'Notes & Formulas'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabCtrl,
+      appBar: shouldShowAppBar
+          ? AppBar(
+              title: Text(
+                'Revision & Notes Pack',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  tooltip: 'Add Revision Cycle',
+                  onPressed: _showAddCycleDialog,
+                ),
+              ],
+              bottom: TabBar(
+                controller: _tabCtrl,
+                indicatorColor: AppColors.primary,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                labelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+                tabs: const [
+                  Tab(icon: Icon(Icons.sync_rounded), text: 'Revision Matrix'),
+                  Tab(
+                      icon: Icon(Icons.collections_bookmark_rounded),
+                      text: 'Notes & Formulas'),
+                ],
+              ),
+            )
+          : null,
+      body: Column(
         children: [
-          _buildRevisionMatrixTab(isDark),
-          _buildNotesPackTab(isDark),
+          if (!shouldShowAppBar)
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.cardDark : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color:
+                        isDark ? AppColors.borderDark : AppColors.borderLight,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: TabBar(
+                controller: _tabCtrl,
+                indicatorColor: AppColors.primary,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                labelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+                tabs: const [
+                  Tab(icon: Icon(Icons.sync_rounded), text: 'Revision Matrix'),
+                  Tab(
+                      icon: Icon(Icons.collections_bookmark_rounded),
+                      text: 'Notes & Formulas'),
+                ],
+              ),
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabCtrl,
+              children: [
+                _buildRevisionMatrixTab(isDark),
+                _buildNotesPackTab(isDark),
+              ],
+            ),
+          ),
         ],
       ),
     );

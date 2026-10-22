@@ -140,12 +140,33 @@ void main() {
   });
 
   group('StorageService Digital Notes Operations', () {
-    test('loadNotebooks creates default welcome notebook when storage is empty',
+    test(
+        'loadNotebooks returns empty list when storage is empty without seeding sample notes',
         () async {
       final notebooks = await StorageService.loadNotebooks();
-      expect(notebooks.isNotEmpty, true);
-      expect(notebooks.first.title.contains('Welcome'), true);
-      expect(notebooks.first.pages.isNotEmpty, true);
+      expect(notebooks.isEmpty, true);
+    });
+
+    test(
+        'loadNotebooks safely purges legacy starter notebook without touching user notebooks',
+        () async {
+      final legacy = Notebook(
+        id: 'nb_welcome_starter',
+        title: 'Welcome to Digital Notes 📓',
+        category: 'General',
+        pages: [NotePage(id: 'p0', pageNumber: 1, content: 'Starter')],
+      );
+      final userNb = Notebook(
+        id: 'nb_user_real',
+        title: 'My Real Exam Notes',
+        category: 'Taxation',
+        pages: [NotePage(id: 'p1', pageNumber: 1, content: 'Section 44AD')],
+      );
+      await StorageService.saveNotebooks([legacy, userNb]);
+      final loaded = await StorageService.loadNotebooks();
+      expect(loaded.length, 1);
+      expect(loaded.first.id, 'nb_user_real');
+      expect(loaded.first.title, 'My Real Exam Notes');
     });
 
     test('saveNotebook, getNotebookById, and deleteNotebook CRUD flow',
@@ -343,6 +364,71 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('New Notebook'), findsOneWidget);
       expect(find.text('All Notebooks'), findsOneWidget);
+      expect(find.text('Your Study Notes Library is Empty'), findsOneWidget);
+      expect(find.text('Create Your First Note'), findsOneWidget);
+    });
+
+    testWidgets(
+        'NotesLibraryScreen clicking "Create Your First Note" opens editor directly without dialogs',
+        (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: NotesLibraryScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create Your First Note'), findsOneWidget);
+
+      // Tap "Create Your First Note"
+      await tester.tap(find.text('Create Your First Note'));
+      await tester.pumpAndSettle();
+
+      // Should immediately be on the NotebookEditorScreen without any AlertDialog
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(NotebookEditorScreen), findsOneWidget);
+      expect(find.byType(RichNotesEditor), findsOneWidget);
+    });
+
+    testWidgets(
+        'NotesLibraryScreen displays existing notebooks without any starter sample card',
+        (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final userNb = Notebook(
+        id: 'nb_custom_001',
+        title: 'Advanced Auditing SA 700',
+        category: 'Auditing',
+        pages: [
+          NotePage(
+            id: 'p1',
+            pageNumber: 1,
+            title: 'Audit Report Elements',
+            content: 'Key Audit Matters summary',
+          ),
+        ],
+      );
+      await StorageService.saveNotebook(userNb);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: NotesLibraryScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Displays user notebook
+      expect(find.text('Advanced Auditing SA 700'), findsOneWidget);
+      // Does NOT display any legacy sample starter card
+      expect(find.text('Welcome to Digital Notes 📓'), findsNothing);
+      // Since only 1 notebook exists, "Recently Edited" carousel is hidden to prevent duplicate cards
+      expect(find.text('Recently Edited'), findsNothing);
     });
 
     testWidgets('NotesLibraryScreen filters notebooks by search query',

@@ -142,348 +142,40 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
     ).then((_) => _loadNotebooks());
   }
 
-  Future<void> _showCreateNotebookDialog({
-    String? prefilledTitle,
-    String? prefilledVideoId,
-    String? prefilledVideoTitle,
-    String? prefilledSubjectId,
-    String? prefilledSubjectName,
-    String? prefilledChapterId,
-    String? prefilledChapterTitle,
-  }) async {
-    final titleController = TextEditingController(
-      text: prefilledTitle ?? '',
-    );
-    final descController = TextEditingController();
-    final tagsController = TextEditingController();
+  Future<void> _createAndOpenNewNotebook({String? initialTitle}) async {
+    final now = DateTime.now();
+    final defaultTitle =
+        (initialTitle != null && initialTitle.trim().isNotEmpty)
+            ? initialTitle.trim()
+            : 'Untitled Note';
 
-    String selectedCategory = widget.studyPlan?.category ?? 'General';
-    String? selectedSubId = prefilledSubjectId;
-    String? selectedSubName = prefilledSubjectName;
-    String? selectedChapId = prefilledChapterId;
-    String? selectedChapTitle = prefilledChapterTitle;
-    Color selectedColor = _presetCoverColors.first;
-
-    final subjects = widget.studyPlan?.subjects ?? [];
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.note_add_rounded,
-                    color: AppColors.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'New Digital Notebook',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 480,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Input
-                  TextField(
-                    controller: titleController,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Notebook Title *',
-                      hintText: 'e.g. Chapter 4: Capital Assets Notes',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Description
-                  TextField(
-                    controller: descController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Description (optional)',
-                      hintText: 'Key formulas, revision summaries & sketches',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Subject selector (if plan has subjects)
-                  if (subjects.isNotEmpty) ...[
-                    Text(
-                      'Link to Subject',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String?>(
-                      initialValue: selectedSubId,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('General / No Subject'),
-                        ),
-                        ...subjects.map((sub) => DropdownMenuItem<String?>(
-                              value: sub.id,
-                              child: Text(sub.name,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                            )),
-                      ],
-                      onChanged: (val) {
-                        setDialogState(() {
-                          selectedSubId = val;
-                          if (val != null) {
-                            final match =
-                                subjects.firstWhere((s) => s.id == val);
-                            selectedSubName = match.name;
-                            selectedChapId = null;
-                            selectedChapTitle = null;
-                          } else {
-                            selectedSubName = null;
-                            selectedChapId = null;
-                            selectedChapTitle = null;
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Chapter selector if subject chosen
-                    if (selectedSubId != null) ...[
-                      Builder(builder: (ctx) {
-                        final currentSub =
-                            subjects.firstWhere((s) => s.id == selectedSubId);
-                        if (currentSub.chapters.isNotEmpty) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Link to Chapter (optional)',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              DropdownButtonFormField<String?>(
-                                initialValue: selectedChapId,
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('Entire Subject'),
-                                  ),
-                                  ...currentSub.chapters.map(
-                                    (chap) => DropdownMenuItem<String?>(
-                                      value: chap.id,
-                                      child: Text(chap.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (cId) {
-                                  setDialogState(() {
-                                    selectedChapId = cId;
-                                    if (cId != null) {
-                                      selectedChapTitle = currentSub.chapters
-                                          .firstWhere((c) => c.id == cId)
-                                          .title;
-                                    } else {
-                                      selectedChapTitle = null;
-                                    }
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }),
-                    ],
-                  ],
-
-                  // Cover Color Picker
-                  Text(
-                    'Cover Pastel Color',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 10,
-                    children: _presetCoverColors.map((color) {
-                      final isSelected = selectedColor == color;
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() => selectedColor = color);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected
-                                  ? Colors.black87
-                                  : Colors.transparent,
-                              width: 2.5,
-                            ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: color.withValues(alpha: 0.45),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: isSelected
-                              ? const Icon(Icons.check,
-                                  color: Colors.white, size: 16)
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Tags
-                  TextField(
-                    controller: tagsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tags (comma separated)',
-                      hintText: 'theory, formulas, exam-focus',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-
-                  // Linked video preview indicator
-                  if (prefilledVideoTitle != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.video_library_rounded,
-                              color: Colors.red, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Linked Video: $prefilledVideoTitle',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.red.shade900,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              onPressed: () {
-                if (titleController.text.trim().isEmpty) return;
-                Navigator.pop(ctx, true);
-              },
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Create & Open'),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            ),
-          ],
+    final newNotebook = Notebook(
+      id: 'nb_${now.millisecondsSinceEpoch}',
+      title: defaultTitle,
+      description: null,
+      category: widget.studyPlan?.category ?? 'General',
+      coverColorValue: _presetCoverColors.first.toARGB32(),
+      tags: [],
+      pages: [
+        NotePage(
+          id: 'page_${now.millisecondsSinceEpoch}_1',
+          pageNumber: 1,
+          title: defaultTitle == 'Untitled Note' ? '' : defaultTitle,
+          content: '',
+          createdAt: now,
+          updatedAt: now,
         ),
-      ),
+      ],
+      createdAt: now,
+      updatedAt: now,
     );
 
-    if (ok == true && titleController.text.trim().isNotEmpty) {
-      final tags = tagsController.text
-          .split(',')
-          .map((t) => t.trim())
-          .where((t) => t.isNotEmpty)
-          .toList();
+    await StorageService.saveNotebook(newNotebook);
+    await _loadNotebooks();
+    widget.onPlanUpdated?.call();
 
-      final newNotebook = Notebook(
-        id: 'nb_${DateTime.now().millisecondsSinceEpoch}',
-        title: titleController.text.trim(),
-        description: descController.text.trim().isEmpty
-            ? null
-            : descController.text.trim(),
-        category: selectedCategory,
-        subjectId: selectedSubId,
-        subjectName: selectedSubName,
-        chapterId: selectedChapId,
-        chapterTitle: selectedChapTitle,
-        linkedVideoId: prefilledVideoId,
-        linkedVideoTitle: prefilledVideoTitle,
-        coverColorValue: selectedColor.toARGB32(),
-        tags: tags,
-        pages: [
-          NotePage(
-            id: 'page_${DateTime.now().millisecondsSinceEpoch}_1',
-            pageNumber: 1,
-            title: 'Overview',
-            content:
-                '# ${titleController.text.trim()}\n\nWrite your notes or sketch diagrams here...',
-          ),
-        ],
-      );
-
-      await StorageService.saveNotebook(newNotebook);
-      await _loadNotebooks();
-      widget.onPlanUpdated?.call();
-
-      if (mounted) {
-        _openNotebook(newNotebook);
-      }
+    if (mounted) {
+      _openNotebook(newNotebook);
     }
   }
 
@@ -555,12 +247,12 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
                       _buildSearchAndFilters(context, isDark),
                       const SizedBox(height: 24),
 
-                      // 3. RECENT NOTES CAROUSEL (if available and no active search)
+                      // 3. RECENT NOTES CAROUSEL (show only when 2 or more notebooks exist and no active filters)
                       if (_searchQuery.isEmpty &&
                           _selectedCategory == 'All' &&
                           _selectedSubjectId == 'All' &&
                           !_onlyFavorites &&
-                          _recentNotebooks.isNotEmpty) ...[
+                          _notebooks.length >= 2) ...[
                         _buildRecentNotesSection(context, isDark),
                         const SizedBox(height: 28),
                       ],
@@ -679,7 +371,7 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
         ),
         const SizedBox(width: 12),
         FilledButton.icon(
-          onPressed: () => _showCreateNotebookDialog(),
+          onPressed: () => _createAndOpenNewNotebook(),
           icon: const Icon(Icons.add_rounded, size: 20),
           label: Text(
             isDesktop ? 'New Notebook' : 'New',
@@ -1321,92 +1013,121 @@ class _NotesLibraryScreenState extends State<NotesLibraryScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+    final isSearchActive = _searchQuery.isNotEmpty;
+
+    return Center(
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 580),
+        margin: const EdgeInsets.symmetric(vertical: 24),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 28),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.16),
+                    const Color(0xFF9D88FD).withValues(alpha: 0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isSearchActive
+                    ? Icons.search_off_rounded
+                    : Icons.edit_note_rounded,
+                color: AppColors.primary,
+                size: 40,
+              ),
             ),
-            child: const Icon(
-              Icons.menu_book_rounded,
-              color: AppColors.primary,
-              size: 44,
+            const SizedBox(height: 20),
+            Text(
+              isSearchActive
+                  ? 'No matching notes found'
+                  : 'Your Study Notes Library is Empty',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.2,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'No matching notes found'
-                : 'No notebooks in your library yet',
-            style: GoogleFonts.poppins(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
+            const SizedBox(height: 8),
+            Text(
+              isSearchActive
+                  ? 'Try searching with another keyword or resetting the filter chips.'
+                  : 'Start capturing lecture takeaways, formulating revision summaries, and sketching concept diagrams with rich text & canvas tools.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                height: 1.5,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'Try searching with another keyword or resetting the filter chips.'
-                : 'Create your first digital study notebook with rich formatted text, stylus sketches, and vector PDF exports.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 12.5,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () {
+                if (isSearchActive) {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _selectedCategory = 'All';
+                    _selectedSubjectId = 'All';
+                    _onlyFavorites = false;
+                  });
+                } else {
+                  _createAndOpenNewNotebook();
+                }
+              },
+              icon: Icon(
+                isSearchActive ? Icons.refresh_rounded : Icons.add_rounded,
+                size: 19,
+              ),
+              label: Text(
+                isSearchActive ? 'Reset Filters' : 'Create Your First Note',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 2,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () {
-              if (_searchQuery.isNotEmpty) {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _selectedCategory = 'All';
-                  _selectedSubjectId = 'All';
-                  _onlyFavorites = false;
-                });
-              } else {
-                _showCreateNotebookDialog();
-              }
-            },
-            icon: Icon(
-              _searchQuery.isNotEmpty
-                  ? Icons.refresh_rounded
-                  : Icons.add_rounded,
-              size: 18,
-            ),
-            label: Text(
-              _searchQuery.isNotEmpty
-                  ? 'Reset Filters'
-                  : 'Create First Notebook',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

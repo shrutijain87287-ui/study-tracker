@@ -286,72 +286,23 @@ class StorageService {
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw) as List;
-        return decoded
+        final list = decoded
             .map((item) =>
                 Notebook.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList();
+        // Remove legacy sample starter notebook if present, while safely preserving all real notebooks
+        final hadStarter = list.any((n) => n.id == 'nb_welcome_starter');
+        if (hadStarter) {
+          list.removeWhere((n) => n.id == 'nb_welcome_starter');
+          await saveNotebooks(list);
+        }
+        return list;
       } catch (e) {
         // Safe fallback on corrupted JSON
       }
     }
-    // Default starter notebook if none exist
-    final starter = _createStarterNotebook();
-    await saveNotebooks([starter]);
-    return [starter];
-  }
-
-  static Notebook _createStarterNotebook() {
-    final now = DateTime.now();
-    return Notebook(
-      id: 'nb_welcome_starter',
-      title: 'Welcome to Digital Notes 📓',
-      description:
-          'Your interactive canvas for rich lecture notes, equations & sketches.',
-      category: 'General',
-      coverColorValue: 0xFF6C52EE, // AppColors.primary
-      tags: ['Guide', 'QuickStart', 'Important'],
-      isFavorite: true,
-      pages: [
-        NotePage(
-          id: 'page_welcome_1',
-          pageNumber: 1,
-          title: 'Getting Started with Digital Notes',
-          content: '''# Welcome to Digital Notes ✨
-
-Take comprehensive, distraction-free study notes with rich formatting and stylus handwriting.
-
-### Key Features:
-• **Rich Text Editor**: Use **Bold**, *Italic*, __Underline__, Headings (H1/H2/H3), and bullet/numbered lists.
-• **Handwriting & Drawing**: Switch to the Canvas tab to draw with Pen, Pencil, Highlighter, and Eraser.
-• **Multi-Page Support**: Add unlimited pages to each notebook.
-• **Class Integration**: Open or create linked notes directly from any saved YouTube class.
-• **PDF Export**: Export your notebooks and drawings to print-ready PDF files.
-
-> Tip: Your notes auto-save continuously and survive browser refreshes and app restarts.''',
-          backgroundStyle: PageBackgroundStyle.ruled,
-          drawingStrokes: [
-            const DrawingStroke(
-              id: 'stroke_welcome_star',
-              points: [
-                DrawingPoint(x: 100, y: 120),
-                DrawingPoint(x: 140, y: 120),
-                DrawingPoint(x: 108, y: 145),
-                DrawingPoint(x: 120, y: 105),
-                DrawingPoint(x: 132, y: 145),
-                DrawingPoint(x: 100, y: 120),
-              ],
-              colorValue: 0xFFF59E0B, // amber gold
-              strokeWidth: 2.5,
-              tool: DrawingTool.pen,
-            ),
-          ],
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ],
-      createdAt: now,
-      updatedAt: now,
-    );
+    // Return empty list when no notebooks exist - never auto-seed placeholder notes
+    return [];
   }
 
   static Future<void> saveNotebooks(List<Notebook> notebooks) async {

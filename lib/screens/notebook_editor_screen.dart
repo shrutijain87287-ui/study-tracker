@@ -792,6 +792,20 @@ class _NotebookEditorScreenState extends State<NotebookEditorScreen> {
           onAutoSave: (title, content) {
             _currentPage.title = title;
             _currentPage.content = content;
+            if (_notebook.pages.length <= 1 ||
+                _notebook.title == 'Untitled Note' ||
+                _notebook.title.isEmpty) {
+              if (title.trim().isNotEmpty && _notebook.title != title.trim()) {
+                _notebook.title = title.trim();
+                if (mounted) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  });
+                }
+              }
+            }
             _scheduleAutoSave();
           },
           showCanvasToggle: true,
@@ -850,6 +864,21 @@ class _NotebookEditorScreenState extends State<NotebookEditorScreen> {
                   onAutoSave: (title, content) {
                     _currentPage.title = title;
                     _currentPage.content = content;
+                    if (_notebook.pages.length <= 1 ||
+                        _notebook.title == 'Untitled Note' ||
+                        _notebook.title.isEmpty) {
+                      if (title.trim().isNotEmpty &&
+                          _notebook.title != title.trim()) {
+                        _notebook.title = title.trim();
+                        if (mounted) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          });
+                        }
+                      }
+                    }
                     _scheduleAutoSave();
                   },
                 ),

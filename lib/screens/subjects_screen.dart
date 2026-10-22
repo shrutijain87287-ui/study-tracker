@@ -8,12 +8,14 @@ class SubjectsScreen extends StatefulWidget {
   final StudyPlan plan;
   final Future<void> Function() onSave;
   final VoidCallback onAddSubject;
+  final bool? showAppBar;
 
   const SubjectsScreen({
     super.key,
     required this.plan,
     required this.onSave,
     required this.onAddSubject,
+    this.showAppBar,
   });
 
   @override
@@ -38,22 +40,27 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 800;
+    final shouldShowAppBar = widget.showAppBar ?? isWide;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      appBar: AppBar(
-        title: Text(
-          'Subjects & Courses',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'Add Subject',
-            onPressed: widget.onAddSubject,
-          ),
-        ],
-      ),
+      appBar: shouldShowAppBar
+          ? AppBar(
+              title: Text(
+                'Subjects & Courses',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.add_rounded),
+                  tooltip: 'Add Subject',
+                  onPressed: widget.onAddSubject,
+                ),
+              ],
+            )
+          : null,
       body: Column(
         children: [
           // Search & Filter Header
@@ -285,16 +292,20 @@ class _SubjectsScreenState extends State<SubjectsScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '$pct% completed • ${s.pendingCount} pending',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark
-                                              ? AppColors.textSecondaryDark
-                                              : AppColors.textSecondaryLight,
+                                      Expanded(
+                                        child: Text(
+                                          '$pct% completed • ${s.pendingCount} pending',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark
+                                                ? AppColors.textSecondaryDark
+                                                : AppColors.textSecondaryLight,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Row(
                                         children: [
                                           if (s.notes.isNotEmpty) ...[

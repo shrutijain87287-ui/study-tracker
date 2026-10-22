@@ -115,9 +115,8 @@ class _AuthScreenState extends State<AuthScreen> {
               backgroundColor: AppColors.success,
             ),
           );
-          if (widget.onSuccess != null) {
-            widget.onSuccess!();
-          } else if (Navigator.canPop(context)) {
+          widget.onSuccess?.call();
+          if (Navigator.canPop(context)) {
             Navigator.pop(context, true);
           }
         }
@@ -171,9 +170,8 @@ class _AuthScreenState extends State<AuthScreen> {
               backgroundColor: AppColors.success,
             ),
           );
-          if (widget.onSuccess != null) {
-            widget.onSuccess!();
-          } else if (Navigator.canPop(context)) {
+          widget.onSuccess?.call();
+          if (Navigator.canPop(context)) {
             Navigator.pop(context, true);
           }
         }
@@ -313,7 +311,7 @@ class _AuthScreenState extends State<AuthScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: widget.isDismissible
+        leading: widget.isDismissible && Navigator.canPop(context)
             ? IconButton(
                 icon: const Icon(Icons.close_rounded),
                 onPressed: () => Navigator.pop(context),

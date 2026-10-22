@@ -1376,8 +1376,12 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
 
           // Ribbon Active Controls Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: _buildActiveTabControls(borderColor, isDark),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: _buildActiveTabControls(borderColor, isDark),
+            ),
           ),
         ],
       ),
@@ -1433,63 +1437,81 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
   }
 
   Widget _buildHomeTabControls(Color borderColor, bool isDark) {
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Font Family Selector
-        DropdownButton<String>(
-          value: _layout.fontFamily,
-          isDense: true,
-          underline: const SizedBox.shrink(),
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
+        Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF262340) : const Color(0xFFF3F0FD),
+            borderRadius: BorderRadius.circular(8),
           ),
-          items: const [
-            DropdownMenuItem(value: 'Poppins', child: Text('Poppins')),
-            DropdownMenuItem(value: 'Roboto', child: Text('Roboto')),
-            DropdownMenuItem(
-                value: 'Merriweather', child: Text('Merriweather (Serif)')),
-            DropdownMenuItem(
-                value: 'JetBrains Mono', child: Text('JetBrains (Mono)')),
-          ],
-          onChanged: (val) {
-            if (val != null) {
-              setState(() {
-                _layout = _layout.copyWith(fontFamily: val);
-                _bodyController.fontFamily = val;
-              });
-              widget.onLayoutChanged?.call(_layout);
-            }
-          },
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _layout.fontFamily,
+              isDense: true,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Poppins', child: Text('Poppins')),
+                DropdownMenuItem(value: 'Roboto', child: Text('Roboto')),
+                DropdownMenuItem(
+                    value: 'Merriweather', child: Text('Merriweather (Serif)')),
+                DropdownMenuItem(
+                    value: 'JetBrains Mono', child: Text('JetBrains (Mono)')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _layout = _layout.copyWith(fontFamily: val);
+                    _bodyController.fontFamily = val;
+                  });
+                  widget.onLayoutChanged?.call(_layout);
+                }
+              },
+            ),
+          ),
         ),
+        const SizedBox(width: 6),
 
         // Font Size Selector
-        DropdownButton<double>(
-          value: _layout.fontSize,
-          isDense: true,
-          underline: const SizedBox.shrink(),
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
+        Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF262340) : const Color(0xFFF3F0FD),
+            borderRadius: BorderRadius.circular(8),
           ),
-          items: [12.0, 14.0, 15.0, 16.0, 18.0, 20.0, 24.0].map((size) {
-            return DropdownMenuItem(
-                value: size, child: Text('${size.toInt()} pt'));
-          }).toList(),
-          onChanged: (val) {
-            if (val != null) {
-              setState(() {
-                _layout = _layout.copyWith(fontSize: val);
-                _bodyController.fontSize = val;
-              });
-              widget.onLayoutChanged?.call(_layout);
-            }
-          },
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<double>(
+              value: _layout.fontSize,
+              isDense: true,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              ),
+              items: [12.0, 14.0, 15.0, 16.0, 18.0, 20.0, 24.0].map((size) {
+                return DropdownMenuItem(
+                    value: size, child: Text('${size.toInt()} pt'));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _layout = _layout.copyWith(fontSize: val);
+                    _bodyController.fontSize = val;
+                  });
+                  widget.onLayoutChanged?.call(_layout);
+                }
+              },
+            ),
+          ),
         ),
 
         _buildVerticalDivider(borderColor),
@@ -1498,15 +1520,15 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
         _buildToolbarButton(
             label: 'H1',
             tooltip: 'Heading 1',
-            onTap: () => _toggleLinePrefix('#')),
+            onTap: () => _toggleLinePrefix('# ')),
         _buildToolbarButton(
             label: 'H2',
             tooltip: 'Heading 2',
-            onTap: () => _toggleLinePrefix('##')),
+            onTap: () => _toggleLinePrefix('## ')),
         _buildToolbarButton(
             label: 'H3',
             tooltip: 'Heading 3',
-            onTap: () => _toggleLinePrefix('###')),
+            onTap: () => _toggleLinePrefix('### ')),
 
         _buildVerticalDivider(borderColor),
 
@@ -1588,14 +1610,14 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
 
         // Indent & Outdent
         _buildIconButton(
-          icon: Icons.format_indent_increase_rounded,
-          tooltip: 'Increase Indent',
-          onTap: _indent,
-        ),
-        _buildIconButton(
           icon: Icons.format_indent_decrease_rounded,
           tooltip: 'Decrease Indent',
           onTap: _outdent,
+        ),
+        _buildIconButton(
+          icon: Icons.format_indent_increase_rounded,
+          tooltip: 'Increase Indent',
+          onTap: _indent,
         ),
 
         _buildVerticalDivider(borderColor),
@@ -1616,10 +1638,9 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
   }
 
   Widget _buildInsertTabControls(Color borderColor, bool isDark) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         FilledButton.tonalIcon(
           icon: const Icon(Icons.table_chart_rounded, size: 16),
@@ -1627,42 +1648,49 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
           onPressed: _showInsertTableDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.image_rounded, size: 16),
           label: const Text('Upload Picture', style: TextStyle(fontSize: 12)),
           onPressed: _pickAndInsertImage,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.link_rounded, size: 16),
           label: const Text('Link', style: TextStyle(fontSize: 12)),
           onPressed: _showInsertLinkDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.functions_rounded, size: 16),
           label: const Text('Math Formula', style: TextStyle(fontSize: 12)),
           onPressed: _showInsertEquationDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
           label: const Text('Study Callout', style: TextStyle(fontSize: 12)),
           onPressed: _showInsertCalloutDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.code_rounded, size: 16),
           label: const Text('Code Block', style: TextStyle(fontSize: 12)),
           onPressed: _showInsertCodeBlockDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.schedule_rounded, size: 16),
           label: const Text('Date & Time', style: TextStyle(fontSize: 12)),
           onPressed: _insertDateTime,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 6),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.horizontal_rule_rounded, size: 16),
           label: const Text('Page Break', style: TextStyle(fontSize: 12)),
@@ -1674,10 +1702,9 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
   }
 
   Widget _buildLayoutTabControls(Color borderColor, bool isDark) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Page Size
         Row(
@@ -1808,10 +1835,9 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
   }
 
   Widget _buildReviewTabControls(Color borderColor, bool isDark) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         FilledButton.tonalIcon(
           icon: const Icon(Icons.search_rounded, size: 16),
@@ -1828,12 +1854,14 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
           },
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 8),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.analytics_outlined, size: 16),
           label: const Text('Word & Doc Stats', style: TextStyle(fontSize: 12)),
           onPressed: _showStatsDialog,
           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        const SizedBox(width: 8),
         FilledButton.tonalIcon(
           icon: Icon(
               widget.isZenMode
@@ -1955,152 +1983,173 @@ class _RichNotesEditorState extends State<RichNotesEditor> {
 
     final marginPadding = _layout.margin.padding;
 
-    return Container(
-      width: sheetWidth,
-      constraints: const BoxConstraints(minHeight: 850),
-      padding: EdgeInsets.symmetric(
-          horizontal: marginPadding, vertical: marginPadding + 8),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: sheetWidth ?? 820.0,
+        minHeight: 480,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Document Header / Category Pill
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'STUDY NOTES • ${_layout.pageSize.label.split(' ').first}',
-                style: const TextStyle(
-                  fontSize: 10,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+            horizontal: marginPadding, vertical: marginPadding + 8),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Document Header / Category Pill
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.sticky_note_2_outlined,
+                          size: 13, color: AppColors.primary),
+                      const SizedBox(width: 5),
+                      Text(
+                        'STUDY NOTES • ${_layout.pageSize.label.split(' ').first.toUpperCase()}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM d, yyyy').format(DateTime.now()),
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // Title Input
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: 'Note Title...',
+                hintStyle: GoogleFonts.poppins(
+                  color: isDark ? Colors.white30 : Colors.black26,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.1,
-                  color: AppColors.primary,
                 ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
               ),
-              Text(
-                DateFormat('MMM d, yyyy').format(DateTime.now()),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.white54 : Colors.black45,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Title Input
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(
-              hintText: 'Document Title...',
-              hintStyle: TextStyle(
-                color: (isDark ? Colors.white38 : Colors.black38),
-                fontSize: 24,
+              style: GoogleFonts.poppins(
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+                letterSpacing: -0.4,
               ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
             ),
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-              letterSpacing: -0.5,
-            ),
-          ),
+            const SizedBox(height: 14),
 
-          Divider(color: borderColor, height: 28),
-
-          // Main Rich Text Body
-          TextField(
-            controller: _bodyController,
-            focusNode: _bodyFocusNode,
-            maxLines: null,
-            textAlign: _alignment,
-            keyboardType: TextInputType.multiline,
-            decoration: InputDecoration(
-              hintText:
-                  'Start writing your study notes here...\n\nUse the Ribbon tabs above to format text, insert authentic tables, upload pictures, add LaTeX formulas, study callouts, or change layout.',
-              hintStyle: TextStyle(
-                color: (isDark ? Colors.white30 : Colors.black26),
-                fontSize: _layout.fontSize,
-                height: _layout.lineSpacing,
+            // Main Rich Text Body
+            TextField(
+              controller: _bodyController,
+              focusNode: _bodyFocusNode,
+              maxLines: null,
+              textAlign: _alignment,
+              keyboardType: TextInputType.multiline,
+              decoration: InputDecoration(
+                hintText:
+                    'Start writing your study notes here...\n\nUse the toolbar tabs above to format text, insert tables, upload images, add formulas, or switch to drawing canvas.',
+                hintStyle: TextStyle(
+                  color: (isDark ? Colors.white30 : Colors.black26),
+                  fontSize: _layout.fontSize,
+                  height: _layout.lineSpacing,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
               ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+              style: _bodyController._getBaseStyle(context),
             ),
-            style: _bodyController._getBaseStyle(context),
-          ),
 
-          // Embedded Tables
-          if (_tables.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            ..._tables.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final tbl = entry.value;
-              return DocumentTableWidget(
-                key: ValueKey('tbl_${tbl.id}'),
-                table: tbl,
-                onChanged: (updated) {
-                  setState(() {
-                    _tables[idx] = updated;
-                  });
-                  widget.onTablesChanged?.call(_tables);
-                  _flushSave();
-                },
-                onDelete: () {
-                  setState(() {
-                    _tables.removeAt(idx);
-                  });
-                  widget.onTablesChanged?.call(_tables);
-                  _flushSave();
-                },
-              );
-            }),
+            // Embedded Tables
+            if (_tables.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              ..._tables.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final tbl = entry.value;
+                return DocumentTableWidget(
+                  key: ValueKey('tbl_${tbl.id}'),
+                  table: tbl,
+                  onChanged: (updated) {
+                    setState(() {
+                      _tables[idx] = updated;
+                    });
+                    widget.onTablesChanged?.call(_tables);
+                    _flushSave();
+                  },
+                  onDelete: () {
+                    setState(() {
+                      _tables.removeAt(idx);
+                    });
+                    widget.onTablesChanged?.call(_tables);
+                    _flushSave();
+                  },
+                );
+              }),
+            ],
+
+            // Embedded Images
+            if (_images.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              ..._images.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final img = entry.value;
+                return DocumentImageWidget(
+                  key: ValueKey('img_${img.id}'),
+                  imageItem: img,
+                  onChanged: (updated) {
+                    setState(() {
+                      _images[idx] = updated;
+                    });
+                    widget.onImagesChanged?.call(_images);
+                    _flushSave();
+                  },
+                  onDelete: () {
+                    setState(() {
+                      _images.removeAt(idx);
+                    });
+                    widget.onImagesChanged?.call(_images);
+                    _flushSave();
+                  },
+                );
+              }),
+            ],
+
+            const SizedBox(height: 120),
           ],
-
-          // Embedded Images
-          if (_images.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            ..._images.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final img = entry.value;
-              return DocumentImageWidget(
-                key: ValueKey('img_${img.id}'),
-                imageItem: img,
-                onChanged: (updated) {
-                  setState(() {
-                    _images[idx] = updated;
-                  });
-                  widget.onImagesChanged?.call(_images);
-                  _flushSave();
-                },
-                onDelete: () {
-                  setState(() {
-                    _images.removeAt(idx);
-                  });
-                  widget.onImagesChanged?.call(_images);
-                  _flushSave();
-                },
-              );
-            }),
-          ],
-
-          const SizedBox(height: 120),
-        ],
+        ),
       ),
     );
   }

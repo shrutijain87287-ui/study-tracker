@@ -24,8 +24,47 @@ class AuthService {
   static final StreamController<User?> _fallbackAuthController =
       StreamController<User?>.broadcast();
 
+  // Test / mock hooks
+  static User? _mockUser;
+  static bool _mockUserOverride = false;
+  static final StreamController<User?> _mockAuthController =
+      StreamController<User?>.broadcast();
+  static Future<AuthResult> Function(
+      String email, String password, String? displayName)? _mockSignUpHandler;
+  static Future<AuthResult> Function(String email, String password)?
+      _mockSignInHandler;
+
+  @visibleForTesting
+  static void setMockUser(User? user) {
+    _mockUserOverride = true;
+    _mockUser = user;
+    _mockAuthController.add(user);
+  }
+
+  @visibleForTesting
+  static void setMockHandlers({
+    Future<AuthResult> Function(
+            String email, String password, String? displayName)?
+        onSignUp,
+    Future<AuthResult> Function(String email, String password)? onSignIn,
+  }) {
+    _mockSignUpHandler = onSignUp;
+    _mockSignInHandler = onSignIn;
+  }
+
+  @visibleForTesting
+  static void resetTestingState() {
+    _mockUserOverride = false;
+    _mockUser = null;
+    _mockSignUpHandler = null;
+    _mockSignInHandler = null;
+  }
+
+  static bool get isMockMode => _mockUserOverride;
+
   /// Ensures Firebase and FirebaseAuth are initialized safely.
   static Future<bool> initialize() async {
+    if (_mockUserOverride) return true;
     if (_initialized) return true;
     try {
       if (Firebase.apps.isEmpty) {
@@ -50,14 +89,28 @@ class AuthService {
 
   /// Stream of user auth state changes.
   static Stream<User?> get authStateChanges {
-    if (_auth != null) {
-      return _auth!.authStateChanges();
+    return _createAuthStateStream().asBroadcastStream();
+  }
+
+  static Stream<User?> _createAuthStateStream() async* {
+    if (_mockUserOverride) {
+      yield _mockUser;
+      yield* _mockAuthController.stream;
+      return;
     }
-    return _fallbackAuthController.stream;
+    if (_auth != null) {
+      yield* _auth!.authStateChanges();
+    } else {
+      yield null;
+      yield* _fallbackAuthController.stream;
+    }
   }
 
   /// Current authenticated user, or null if unauthenticated / offline.
   static User? get currentUser {
+    if (_mockUserOverride) {
+      return _mockUser;
+    }
     if (_auth != null) {
       return _auth!.currentUser;
     }
@@ -85,6 +138,14 @@ class AuthService {
     required String password,
     String? displayName,
   }) async {
+    if (_mockSignUpHandler != null) {
+      final res = await _mockSignUpHandler!(email, password, displayName);
+      if (res.isSuccess) {
+        setMockUser(res.user);
+      }
+      return res;
+    }
+
     if (isPlaceholderConfigured) {
       return const AuthResult.failure(
         'Firebase project credentials are not yet configured. Please paste your Web API key and project ID from Firebase Console into lib/firebase_options.dart.',
@@ -127,6 +188,14 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    if (_mockSignInHandler != null) {
+      final res = await _mockSignInHandler!(email, password);
+      if (res.isSuccess) {
+        setMockUser(res.user);
+      }
+      return res;
+    }
+
     if (isPlaceholderConfigured) {
       return const AuthResult.failure(
         'Firebase project credentials are not yet configured. Please paste your Web API key and project ID from Firebase Console into lib/firebase_options.dart.',
@@ -207,15 +276,24 @@ class AuthService {
 
   /// Sign out current user.
   static Future<void> signOut() async {
+    if (_mockUserOverride) {
+      setMockUser(null);
+      return;
+    }
     try {
       await _auth?.signOut();
     } catch (e) {
       debugPrint('Sign out notice: $e');
     }
+    _fallbackAuthController.add(null);
   }
 
   /// Delete current user account with Firebase Auth.
   static Future<AuthResult> deleteAccount() async {
+    if (_mockUserOverride) {
+      setMockUser(null);
+      return const AuthResult.success();
+    }
     if (_auth == null || _auth!.currentUser == null) {
       return const AuthResult.failure('No active user account found.');
     }

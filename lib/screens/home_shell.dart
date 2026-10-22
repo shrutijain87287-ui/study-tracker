@@ -390,6 +390,7 @@ class _HomeShellState extends State<HomeShell> {
         plan: _activePlan,
         onSave: _persistAll,
         onAddSubject: _showAddSubjectDialog,
+        showAppBar: isWide,
       ),
       ClassesHubScreen(
         studyPlan: _activePlan,
@@ -406,10 +407,12 @@ class _HomeShellState extends State<HomeShell> {
       RevisionScreen(
         plan: _activePlan,
         onSave: _persistAll,
+        showAppBar: isWide,
       ),
       RemindersScreen(
         plan: _activePlan,
         onSave: _persistAll,
+        showAppBar: isWide,
       ),
       SettingsScreen(
         activePlan: _activePlan,
@@ -421,11 +424,12 @@ class _HomeShellState extends State<HomeShell> {
         onDeletePlan: _deletePlan,
         onReloadAll: widget.onReloadAll,
         onSave: _persistAll,
+        showAppBar: isWide,
       ),
     ];
 
     if (isWide) {
-      // Elegant Pastel Left Sidebar inspired by reference design
+      // Elegant Pastel Left Sidebar for Desktop / Tablet Landscape
       return Scaffold(
         body: Row(
           children: [
@@ -441,316 +445,13 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
               ),
-              child: Column(
-                children: [
-                  // App Brand & Logo
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: AppColors.primaryGradient,
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.28),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.school_rounded,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Study Tracker',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 17,
-                                      letterSpacing: -0.3,
-                                      color: isDark
-                                          ? AppColors.textPrimaryDark
-                                          : AppColors.textPrimaryLight,
-                                    ),
-                                  ),
-                                  Text(
-                                    _activePlan.category,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDark
-                                          ? AppColors.textSecondaryDark
-                                          : AppColors.textSecondaryLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Account Profile & Sync Status Chip
-                        StreamBuilder<User?>(
-                          stream: AuthService.authStateChanges,
-                          initialData: AuthService.currentUser,
-                          builder: (context, snapshot) {
-                            final user = snapshot.data;
-                            if (user != null) {
-                              final initial =
-                                  (user.displayName?.isNotEmpty == true
-                                          ? user.displayName![0]
-                                          : user.email?[0] ?? 'U')
-                                      .toUpperCase();
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () =>
-                                      setState(() => _selectedTabIndex = 7),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 7),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? const Color(0xFF252248)
-                                          : AppColors.primaryLight
-                                              .withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? const Color(0xFF373268)
-                                            : const Color(0xFFDDD6FE),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 11,
-                                          backgroundColor: AppColors.primary,
-                                          child: Text(
-                                            initial,
-                                            style: const TextStyle(
-                                              fontSize: 10.5,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            user.displayName ??
-                                                user.email?.split('@').first ??
-                                                'User',
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        const SyncStatusBadge(showLabel: false),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AuthScreen(
-                                        onSuccess: widget.onReloadAll,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? const Color(0xFF252248)
-                                        : AppColors.pastelPurple,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isDark
-                                          ? const Color(0xFF373268)
-                                          : const Color(0xFFDDD6FE),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.cloud_outlined,
-                                          size: 15, color: AppColors.primary),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          'Sign In to Sync',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                      const Icon(Icons.chevron_right_rounded,
-                                          size: 15, color: AppColors.primary),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Sidebar Nav Items
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildSidebarItem(
-                          index: 0,
-                          icon: Icons.dashboard_rounded,
-                          label: 'Dashboard',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 1,
-                          icon: Icons.menu_book_rounded,
-                          label: 'Subjects',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 2,
-                          icon: Icons.smart_display_rounded,
-                          label: 'Classes Hub',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 3,
-                          icon: Icons.edit_note_rounded,
-                          label: 'Digital Notes',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 4,
-                          icon: Icons.timer_rounded,
-                          label: 'Focus Timer',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 5,
-                          icon: Icons.sync_rounded,
-                          label: 'Revision Pack',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 6,
-                          icon: Icons.notifications_none_rounded,
-                          label: 'Reminders',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSidebarItem(
-                          index: 7,
-                          icon: Icons.settings_outlined,
-                          label: 'Settings',
-                          isDark: isDark,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Bottom Motivational Quote Card
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF222040)
-                            : AppColors.pastelPurple,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF333060)
-                              : const Color(0xFFE4DCF9),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.eco_rounded,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            '“Consistency today builds the success you’re proud of tomorrow.”',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              height: 1.45,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? const Color(0xFFDDD9FA)
-                                  : const Color(0xFF4C3D82),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Align(
-                            alignment: Alignment.bottomRight,
-                            child: Text('💜', style: TextStyle(fontSize: 14)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              child: SafeArea(
+                bottom: false,
+                child: _buildNavigationContent(
+                  context,
+                  isDrawer: false,
+                  isDark: isDark,
+                ),
               ),
             ),
 
@@ -761,87 +462,437 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
-    // Narrow layout (Mobile) with Bottom Navigation Bar
+    // Narrow layout (Mobile) with Top AppBar & Left Navigation Drawer
     return Scaffold(
-      body: pages[_selectedTabIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTabIndex,
-        onDestinationSelected: (val) => setState(() => _selectedTabIndex = val),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        backgroundColor: isDark ? AppColors.cardDark : Colors.white,
-        indicatorColor:
-            isDark ? const Color(0xFF353060) : AppColors.primaryLight,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon:
-                Icon(Icons.dashboard_rounded, color: AppColors.primary),
-            label: 'Home',
+      appBar: _buildMobileAppBar(context, isDark),
+      drawer: Drawer(
+        key: const Key('app_navigation_drawer'),
+        backgroundColor:
+            isDark ? AppColors.sidebarDark : AppColors.sidebarLight,
+        child: SafeArea(
+          child: _buildNavigationContent(
+            context,
+            isDrawer: true,
+            isDark: isDark,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon:
-                Icon(Icons.menu_book_rounded, color: AppColors.primary),
-            label: 'Subjects',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.smart_display_outlined),
-            selectedIcon:
-                Icon(Icons.smart_display_rounded, color: AppColors.primary),
-            label: 'Classes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.edit_note_outlined),
-            selectedIcon:
-                Icon(Icons.edit_note_rounded, color: AppColors.primary),
-            label: 'Notes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.timer_outlined),
-            selectedIcon: Icon(Icons.timer_rounded, color: AppColors.primary),
-            label: 'Timer',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.sync_outlined),
-            selectedIcon: Icon(Icons.sync_rounded, color: AppColors.primary),
-            label: 'Revision',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_none_rounded),
-            selectedIcon:
-                Icon(Icons.notifications_rounded, color: AppColors.primary),
-            label: 'Alerts',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon:
-                Icon(Icons.settings_rounded, color: AppColors.primary),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
+      body: pages[_selectedTabIndex],
+    );
+  }
+
+  static const List<String> _tabTitles = [
+    'Dashboard',
+    'Subjects',
+    'Classes Hub',
+    'Digital Notes',
+    'Focus Timer',
+    'Revision Pack',
+    'Reminders',
+    'Settings',
+  ];
+
+  PreferredSizeWidget _buildMobileAppBar(BuildContext context, bool isDark) {
+    final title =
+        (_selectedTabIndex >= 0 && _selectedTabIndex < _tabTitles.length)
+            ? _tabTitles[_selectedTabIndex]
+            : 'Study Tracker';
+
+    return AppBar(
+      backgroundColor: isDark ? AppColors.cardDark : Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      centerTitle: false,
+      leading: Builder(
+        builder: (ctx) => IconButton(
+          key: const Key('hamburger_menu_button'),
+          icon: const Icon(Icons.menu_rounded),
+          tooltip: 'Open navigation menu',
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 17,
+          fontWeight: FontWeight.bold,
+          color:
+              isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        ),
+      ),
+      actions: [
+        if (_selectedTabIndex == 1)
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Add Subject',
+            onPressed: _showAddSubjectDialog,
+          ),
+        const Padding(
+          padding: EdgeInsets.only(right: 12),
+          child: Center(
+            child: SyncStatusBadge(showLabel: false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavigationContent(
+    BuildContext context, {
+    required bool isDrawer,
+    required bool isDark,
+  }) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      children: [
+        // App Brand & Logo (+ optional Drawer Close button)
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.school_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Study Tracker',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: -0.3,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  Text(
+                    _activePlan.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isDrawer)
+              IconButton(
+                key: const Key('drawer_close_button'),
+                icon: const Icon(Icons.close_rounded, size: 20),
+                tooltip: 'Close menu',
+                onPressed: () => Navigator.pop(context),
+              ),
+          ],
+        ),
+
+        // Account Profile & Sync Status Chip
+        StreamBuilder<User?>(
+          stream: AuthService.authStateChanges,
+          initialData: AuthService.currentUser,
+          builder: (context, snapshot) {
+            final user = snapshot.data;
+            if (user != null) {
+              final initial = (user.displayName?.isNotEmpty == true
+                      ? user.displayName![0]
+                      : user.email?[0] ?? 'U')
+                  .toUpperCase();
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    if (isDrawer) Navigator.pop(context);
+                    setState(() => _selectedTabIndex = 7);
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF252248)
+                          : AppColors.primaryLight.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF373268)
+                            : const Color(0xFFDDD6FE),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 11,
+                          backgroundColor: AppColors.primary,
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            user.displayName ??
+                                user.email?.split('@').first ??
+                                'User',
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SyncStatusBadge(showLabel: false),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  if (isDrawer) Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AuthScreen(
+                        onSuccess: widget.onReloadAll,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF252248)
+                        : AppColors.pastelPurple,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF373268)
+                          : const Color(0xFFDDD6FE),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_outlined,
+                          size: 15, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Sign In to Sync',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          size: 15, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+
+        // Navigation Menu Items (all 8 items)
+        _buildSidebarItem(
+          context: context,
+          index: 0,
+          icon: Icons.dashboard_rounded,
+          label: 'Dashboard',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 1,
+          icon: Icons.menu_book_rounded,
+          label: 'Subjects',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 2,
+          icon: Icons.smart_display_rounded,
+          label: 'Classes Hub',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 3,
+          icon: Icons.edit_note_rounded,
+          label: 'Digital Notes',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 4,
+          icon: Icons.timer_rounded,
+          label: 'Focus Timer',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 5,
+          icon: Icons.sync_rounded,
+          label: 'Revision Pack',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 6,
+          icon: Icons.notifications_none_rounded,
+          label: 'Reminders',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+        const SizedBox(height: 5),
+        _buildSidebarItem(
+          context: context,
+          index: 7,
+          icon: Icons.settings_outlined,
+          label: 'Settings',
+          isDark: isDark,
+          isDrawer: isDrawer,
+        ),
+
+        const SizedBox(height: 20),
+
+        // Motivational Quote Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF222040) : AppColors.pastelPurple,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? const Color(0xFF333060) : const Color(0xFFE4DCF9),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.eco_rounded,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '“Consistency today builds the success you’re proud of tomorrow.”',
+                style: GoogleFonts.poppins(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? const Color(0xFFDDD9FA)
+                      : const Color(0xFF4C3D82),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Align(
+                alignment: Alignment.bottomRight,
+                child: Text('💜', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 
   Widget _buildSidebarItem({
+    required BuildContext context,
     required int index,
     required IconData icon,
     required String label,
     required bool isDark,
+    required bool isDrawer,
   }) {
     final isSelected = _selectedTabIndex == index;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => setState(() => _selectedTabIndex = index),
+        key: Key('nav_item_$index'),
+        onTap: () {
+          if (isDrawer) {
+            Navigator.pop(context);
+          }
+          if (_selectedTabIndex != index) {
+            setState(() => _selectedTabIndex = index);
+          }
+        },
         borderRadius: BorderRadius.circular(16),
         hoverColor: isDark
             ? Colors.white.withValues(alpha: 0.05)
             : AppColors.primaryLight.withValues(alpha: 0.4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: isSelected
                 ? (isDark ? const Color(0xFF2C2854) : AppColors.primaryLight)

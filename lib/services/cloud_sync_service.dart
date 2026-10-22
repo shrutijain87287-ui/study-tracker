@@ -131,6 +131,7 @@ class CloudSyncService {
 
   /// Initializes Firestore safely.
   static Future<bool> initialize() async {
+    if (AuthService.isMockMode) return false;
     if (_initialized) return true;
     try {
       if (Firebase.apps.isEmpty) {

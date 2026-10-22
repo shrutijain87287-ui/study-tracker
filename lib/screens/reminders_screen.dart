@@ -12,11 +12,13 @@ import '../theme/app_theme.dart';
 class RemindersScreen extends StatefulWidget {
   final StudyPlan plan;
   final Future<void> Function() onSave;
+  final bool? showAppBar;
 
   const RemindersScreen({
     super.key,
     required this.plan,
     required this.onSave,
+    this.showAppBar,
   });
 
   @override
@@ -394,24 +396,29 @@ class _RemindersScreenState extends State<RemindersScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 800;
+    final shouldShowAppBar = widget.showAppBar ?? isWide;
     final activeReminders = plan.reminders.where((r) => r.enabled).toList();
     final inactiveReminders = plan.reminders.where((r) => !r.enabled).toList();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      appBar: AppBar(
-        title: Text(
-          'Reminders & Alarms',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.alarm_add_rounded),
-            tooltip: 'Add Reminder',
-            onPressed: () => _addReminderDialog(),
-          ),
-        ],
-      ),
+      appBar: shouldShowAppBar
+          ? AppBar(
+              title: Text(
+                'Reminders & Alarms',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.alarm_add_rounded),
+                  tooltip: 'Add Reminder',
+                  onPressed: () => _addReminderDialog(),
+                ),
+              ],
+            )
+          : null,
       body: _isLoadingSettings
           ? const Center(child: CircularProgressIndicator())
           : ListView(
